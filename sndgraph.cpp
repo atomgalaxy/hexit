@@ -7,130 +7,18 @@
  * @since 2010-06-03 03:50:57 PM
  */
 
-#include <cstdlib>
+#include "sndgraph.hpp"
+
 #include <SDL/SDL.h>
 #include <SDL/SDL_audio.h>
-#include <cmath>
+
+#include <cstdlib>
+
 #include <iostream>
-#include <vector>
-#include <list>
 #include <unistd.h>
-#include <cassert>
 
-#include <queue>
-#include <sstream>
-
-struct pravokotnik
-{
-    double tone; /* hz */
-    double start; /* in seconds */
-    double duration; /* in seconds */
-    size_t instrument; /* ignored */
-    double left_volume; /* 0-1, 1 is max */
-    double right_volume; /* ^^ */
-
-    pravokotnik(
-            double tone, double start, double duration,
-            size_t instrument = 0,
-            double left_volume = 0.7,
-            double right_volume = 0.7)
-        : tone(tone)
-        , start(start)
-        , duration(duration)
-        , instrument(instrument)
-        , left_volume(left_volume)
-        , right_volume(right_volume)
-    {}
-
-
-    bool operator>(const pravokotnik& other) const
-    {
-        return start > other.start;
-    }
-
-    std::string str()
-    {
-        std::stringstream ss;
-        ss << "tone: " << tone << "hz, " << "start: " << start << ", duration: "
-            << duration;
-        return ss.str();
-    }
-};
-
-typedef std::priority_queue<
-    pravokotnik,
-    std::vector<pravokotnik>,
-    std::greater<pravokotnik>
-    > piano_roll;
-
-struct Sample {
-    float left;
-    float right;
-};
-
-struct player
-{
-    double time;
-    piano_roll roll;
-    std::list<pravokotnik> active;
-
-    player(piano_roll roll)
-        : time(0)
-        , roll(roll)
-        , active()
-    {}
-
-    void advance(double dt)
-    {
-        assert((dt >= 0) && "Not meant to go backwards!");
-        time += dt;
-
-        // add all instruments that have to sound at this time
-        if (!roll.empty()) {
-            auto vrh = roll.top();
-            if (vrh.start <= time) {
-                active.push_back(vrh);
-                roll.pop();
-            }
-        }
-
-        // remove all instruments that are to be removed.
-        auto p = active.begin();
-        auto e = active.end();
-        while (p != e) {
-            if (p->start + p->duration < time) {
-                p = active.erase(p);
-            } else {
-                ++p;
-            }
-        }
-    }
-
-    Sample sound()
-    {
-        double normalize = 1/volume_norm();
-        Sample s = {0, 0};
-        for (auto p : active) {
-            auto a = sin(2 * M_PI * p.tone * time);
-            s.left  += a * p.left_volume  * normalize;
-            s.right += a * p.right_volume * normalize;
-        }
-        return s;
-    }
-
-    double volume_norm()
-    {
-        double left = 0;
-        double right = 0;
-        for (auto p : active) {
-            left  += p.left_volume;
-            right += p.right_volume;
-        }
-        if (left < 1 ) {left = 1; }
-        if (right < 1) {right = 1;}
-        return std::max(left, right);
-    }
-};
+using namespace sgr;
+using namespace std;
 
 double dist(double in) {
     double sign = (in > 0)? 1 : -1;
@@ -144,7 +32,7 @@ void audio_callback(void *userdata, Uint8 *stream_in, int len_in);
 struct callback_data {
     player track;
     SDL_AudioSpec fmt;
-    std::vector<Sample> sound;
+    vector<sample> sound;
 
     callback_data(player track, size_t samples)
         : track(track)
@@ -195,16 +83,15 @@ void fmtdataToStream(const callback_data& data, Uint8 *stream, int len)
     }
 }
 
-
-
 int main( int argc, char *argv[] )
 {
 
     piano_roll pr;
-    pr.push(pravokotnik(440  , 0    , 2));
-    pr.push(pravokotnik(880  , 1    , 1));
-    pr.push(pravokotnik(1760 , 1.5  , 0.5));
-    pr.push(pravokotnik(3520 , 1.75 , 0.25));
+
+    sgr::scales sc;
+    make_melody(sc.ionian, 0, 0.5, pr);
+    make_melody(sc.aeolian, 4.0, 0.5, pr);
+    make_melody(sc.dorian, 8.0, 0.5, pr);
 
     callback_data data(pr, 512);
 
