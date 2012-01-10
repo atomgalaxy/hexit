@@ -230,7 +230,7 @@ void make_melody(
 {
     double t = start_t;
     for (auto tone : tones) {
-        pr.pushk(instruction(tone_to_freq(tone), t, t+dt, "sine"));
+        pr.push(instruction(tone_to_freq(tone), t, t+dt, "sine"));
         t += dt;
     }
 }
