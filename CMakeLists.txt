@@ -8,4 +8,4 @@ include_directories(.)
 find_package(SDL REQUIRED)
 
 add_executable(sndgraph sndgraph.cpp )
-target_link_libraries(sndgraph ${SDL_LIBRARY})
+target_link_libraries(sndgraph ${SDL_LIBRARY} SDL_sound)

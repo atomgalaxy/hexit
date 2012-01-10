@@ -92,6 +92,7 @@ int main( int argc, char *argv[] )
     make_melody(sc.ionian, 0, 0.5, pr);
     make_melody(sc.aeolian, 4.0, 0.5, pr);
     make_melody(sc.dorian, 8.0, 0.5, pr);
+    make_melody(sc.mixolydian, 12, 0.5, pr);
 
     callback_data data(pr, 512);
 
