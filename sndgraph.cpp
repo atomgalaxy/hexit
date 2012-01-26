@@ -30,11 +30,11 @@ double dist(double in) {
 void audio_callback(void *userdata, Uint8 *stream_in, int len_in);
 
 struct callback_data {
-    player track;
+    sgr::player::player track;
     SDL_AudioSpec fmt;
-    vector<sample> sound;
+    vector<sgr::player::sample> sound;
 
-    callback_data(player track, size_t samples)
+    callback_data(sgr::player::player track, size_t samples)
         : track(track)
         , sound()
         , fmt()
@@ -86,14 +86,22 @@ void fmtdataToStream(const callback_data& data, Uint8 *stream, int len)
 int main( int argc, char *argv[] )
 {
 
-    piano_roll pr;
+    sgr::notation::song song;
 
-    sgr::scales sc;
-    make_melody(sc.ionian, 0, 0.5, pr);
-    make_melody(sc.aeolian, 4.0, 0.5, pr);
-    make_melody(sc.dorian, 8.0, 0.5, pr);
+    sgr::composition::scales sc;
 
-    callback_data data(pr, 512);
+    using sgr::notation::instruments::sinewave;
+    using sgr::notation::vol::simple;
+
+    song.add_note(std::shared_ptr<sinewave>(new sinewave(0, 0, 5, std::shared_ptr<simple>(new simple()))));
+    song.add_note(std::shared_ptr<sinewave>(new sinewave(4, 1, 6, std::shared_ptr<simple>(new simple()))));
+    song.add_note(std::shared_ptr<sinewave>(new sinewave(7, 2, 7, std::shared_ptr<simple>(new simple()))));
+
+//    make_melody(sc.ionian, 0, 0.5, pr);
+//    make_melody(sc.aeolian, 4.0, 0.5, pr);
+//    make_melody(sc.dorian, 8.0, 0.5, pr);
+
+    callback_data data( sgr::player::player(song), 512);
 
     std::cout << "channels: " << (int) data.fmt.channels << " samples: " <<
         data.fmt.samples << " freq: " << data.fmt.freq << std::endl;

@@ -23,19 +23,11 @@
 #include <iostream>
 #include <memory>
 #include <map>
+#include <set>
 
 namespace sgr {
 
-double tone_to_freq(double tone, int octave = 4)
-{
-    /* make it so the a440 is 9-4 */
-    const double root12_2 = 1.05946309435929;
-    double tonenumber = octave * 12 + tone;
-    double a440 = 4*12 + 9;
-    double offset = tonenumber - a440;
-    double shift = pow(root12_2, offset);
-    return 440 * shift;
-}
+namespace math {
 
 double pmod(double a, double b)
 {
@@ -47,6 +39,206 @@ double mod(double a, double b)
     return (a/b - floor(a/b)) * b;
 }
 
+} /* end namespace math */
+
+namespace notation {
+
+namespace vol {
+
+struct simple;
+struct envelope_visitor {
+    virtual void visit(const simple& s) = 0;
+};
+
+struct envelope : public std::enable_shared_from_this<envelope> {
+    virtual void accept(envelope_visitor& vis) const = 0;
+};
+
+struct simple : public envelope {
+    simple(double vol_left=0.7, double vol_right=0.7)
+        : left(vol_left)
+        , right(vol_right)
+    {}
+
+    double left;
+    double right;
+
+    /// visitor implementation.
+    void accept(envelope_visitor& v) const { v.visit(*this); }
+};
+
+} /* end namespace vol */
+
+
+namespace instruments {
+
+struct sinewave;
+struct sawwave;
+struct squarewave;
+
+struct instrument_visitor
+{
+    virtual void visit(const sinewave& s) = 0;
+    virtual void visit(const sawwave& s) = 0;
+    virtual void visit(const squarewave& s) = 0;
+};
+
+struct instrument : public std::enable_shared_from_this<instrument> {
+    /// principal frequency, in halfnotes from a440
+    virtual double pitch() const = 0;
+    /// the start of the note, in seconds.
+    virtual double start() const = 0;
+    /// the end of the note, in seconds.
+    virtual double end() const = 0;
+
+    /// returns the volume envelope
+    virtual std::shared_ptr<const vol::envelope> envelope() const = 0;
+
+    /// visitor declaration
+    virtual void accept(instrument_visitor& vis) const = 0;
+};
+
+struct sinewave : public instrument
+{
+public:
+    sinewave(double pitch_, double start_, double duration_,
+            std::shared_ptr<const vol::envelope> envelope_)
+        : pitch_(pitch_)
+        , start_(start_)
+        , end_(start_ + duration_)
+        , envelope_(envelope_)
+    {}
+    virtual double pitch() const { return pitch_; }
+    virtual double start() const { return start_; }
+    virtual double end() const   { return end_; }
+    virtual std::shared_ptr<const  vol::envelope> envelope() const
+    {
+        return envelope_;
+    }
+    virtual void accept(instrument_visitor& vis) const
+    {
+        vis.visit(*this);
+    }
+private:
+    double pitch_;
+    double start_;
+    double end_;
+    std::shared_ptr<const vol::envelope> envelope_;
+};
+
+struct sawwave : public instrument
+{
+public:
+    sawwave(double pitch_, double start_, double duration_,
+            std::shared_ptr<const vol::envelope> envelope_)
+        : pitch_(pitch_)
+        , start_(start_)
+        , end_(start_ + duration_)
+        , envelope_(envelope_)
+    {}
+    virtual double pitch() const { return pitch_; }
+    virtual double start() const { return start_; }
+    virtual double end() const   { return end_; }
+    virtual std::shared_ptr<const vol::envelope> envelope() const
+    {
+        return envelope_;
+    }
+    virtual void accept(instrument_visitor& vis) const
+    {
+        vis.visit(*this);
+    }
+private:
+    double pitch_;
+    double start_;
+    double end_;
+    std::shared_ptr<const vol::envelope> envelope_;
+};
+
+struct squarewave : public instrument
+{
+public:
+    squarewave(double pitch_, double start_, double duration_,
+            std::shared_ptr<const vol::envelope> envelope_)
+        : pitch_(pitch_)
+        , start_(start_)
+        , end_(start_ + duration_)
+        , envelope_(envelope_)
+    {}
+    virtual double pitch() const { return pitch_; }
+    virtual double start() const { return start_; }
+    virtual double end() const   { return end_; }
+    virtual std::shared_ptr<const  vol::envelope> envelope() const
+    {
+        return envelope_;
+    }
+    virtual void accept(instrument_visitor& vis) const
+    {
+        vis.visit(*this);
+    }
+private:
+    double pitch_;
+    double start_;
+    double end_;
+    std::shared_ptr<const vol::envelope> envelope_;
+};
+
+} /* end namespace instruments */
+
+struct song {
+public:
+    typedef instruments::instrument note_t;
+    /* LISTENER PATTERN */
+    struct note_listener {
+        virtual void notify(const std::shared_ptr<const note_t> note) = 0;
+    };
+private:
+    /// notes
+    std::vector<std::shared_ptr<const instruments::instrument>> notes;
+
+    /// listeners
+    std::set<std::shared_ptr<note_listener>> listeners;
+
+public:
+
+    void listen(std::shared_ptr<note_listener> listener) {
+        listeners.insert(listener);
+    }
+
+    void remove_listener(std::shared_ptr<note_listener> listener) {
+        listeners.erase(listener);
+    }
+
+    /* actual song functions */
+    void add_note(const std::shared_ptr<const note_t> note)
+    {
+        notes.push_back(note);
+        for (auto listener : listeners) {
+            listener->notify(note);
+        }
+    }
+
+    const
+    std::vector<std::shared_ptr<const note_t>>
+    active_notes(double time)
+    {
+        std::vector<std::shared_ptr<const note_t>> instrs;
+        for (auto note : notes) {
+            if (note->start() >= time && note->end() <= time) {
+                instrs.push_back(note);
+            }
+        }
+    }
+
+    const decltype(notes)& get_song()
+    {
+        return notes;
+    }
+
+};
+
+} /* end namespace notation */
+
+namespace composition {
 
 class scales
 {
@@ -112,6 +304,7 @@ public:
     std::vector<double>
     mode(const std::vector<double>& scale, size_t n)
     {
+        using math::mod;
         n -= 1;
         size_t size = scale.size();
         double first = scale[n % size];
@@ -122,6 +315,26 @@ public:
         return newscale;
     }
 };
+
+} /* end namespace composition */
+
+namespace player {
+
+namespace util {
+    static const double TAU = 2 * M_PI;
+    static const double TWELFTH_ROOT_OF_2 = 1.05946309435929;
+
+    /**
+     * Returns the frequency of the given tone.
+     * @param tone the offset, in semitones, from a440. Negative values are of
+     * course accepted.
+     */
+    double tone_to_freq(double tone)
+    {
+        double shift = pow(TWELFTH_ROOT_OF_2, tone);
+        return 440 * shift;
+    }
+} /* end namespace player::util */
 
 struct sample
 {
@@ -134,64 +347,133 @@ struct sample
     double right;
 }; /* end struct sample */
 
-struct instruction
-{
-    double freq; /* hz */
-    double start; /* in seconds */
-    double end; /* in seconds */
-    std::string instr; /* instrument */
-    double left_volume; /* 0-1, 1 is max */
-    double right_volume; /* ^^ */
+namespace vol {
 
-    instruction( double freq, double start, double end,
-          std::string instr,
-          double left_volume = 0.7,
-          double right_volume = 0.7
-          )
-        : freq(freq)
+struct envelope
+{
+    constexpr static double GLOBAL_FALLOFF = 0.02;
+    virtual sample volume(double t, double dt) = 0;
+};
+
+struct simple : public envelope
+{
+    simple( const notation::vol::simple& data,
+            double start,
+            double end
+            )
+        : data(data)
         , start(start)
         , end(end)
-        , instr(instr)
-        , left_volume(left_volume)
-        , right_volume(right_volume)
+    {}
+    virtual sample volume(double t, double dt)
+    {
+        using std::min;
+        // decrackle
+        double edge_dist = min(min(t - start, end - t) / GLOBAL_FALLOFF, 1.0);
+        return sample(data.left * edge_dist, data.right * edge_dist);
+    }
+
+    notation::vol::simple data;
+    double start;
+    double end;
+};
+
+struct factory_visitor : public notation::vol::envelope_visitor
+{
+    typedef std::shared_ptr<envelope> env_ptr_t;
+
+    factory_visitor(double start, double stop)
+        : start(start)
+        , stop(stop)
+        , obj(nullptr)
     {}
 
-
-    bool operator>(const instruction& other) const
+    void visit(const notation::vol::simple& env)
     {
-        return start > other.start;
+        obj = env_ptr_t(new simple(env, start, stop));
+    }
+
+    std::shared_ptr<envelope>
+    getobj()
+    {
+        return obj;
+    }
+
+    double start;
+    double stop;
+    env_ptr_t obj;
+};
+
+std::shared_ptr<envelope>
+factory(
+        const notation::instruments::instrument& instr
+        )
+{
+    factory_visitor v(instr.start(), instr.end());
+    instr.envelope()->accept(v);
+    return v.getobj();
+}
+
+} /* end namespace vol */
+
+namespace instructions {
+
+struct instruction
+{
+    instruction(const notation::instruments::instrument& data)
+        : start(data.start())
+        , end(data.end())
+        , envelope(vol::factory(data))
+    {}
+
+    const double start;
+    const double end;
+    std::shared_ptr<vol::envelope> envelope;
+    sample volume(double t, double dt) {
+        return envelope->volume(t, dt);
     }
 
     std::string str()
     {
         std::stringstream ss;
-        ss << "freq: " << freq << "hz, " << "start: " << start << " end: " <<
-            end << ", duration: " << end-start;
+        ss << ", start: " << start
+           << ", end: " << end
+           << ", duration: " << end-start
+           << std::endl;
         return ss.str();
     }
+
+    virtual sample play(double t, double dt) = 0;
 }; /*  end struct instruction */
 
-
-struct instrument
+struct sine : public instruction
 {
-    virtual sample play(const instruction& tone, double time) const = 0;
-}; /* end struct instrument */
+    sine(const notation::instruments::sinewave& data)
+        : instruction(data)
+        , freq(util::tone_to_freq(data.pitch()))
+    {}
 
-struct sine : public instrument
-{
-    virtual sample play(const instruction& tone, double time) const
+    virtual sample play(double t, double dt)
     {
-        auto a = sin(2 * M_PI * tone.freq * time);
-        return sample(a * tone.left_volume, a * tone.right_volume);
+        double x = util::TAU * freq * t;
+        auto a = sin(x);
+        return sample(a, a);
     }
+
+    double freq;
 }; /* end struct sine */
 
-struct sawtooth : public instrument
+struct sawtooth : public instruction
 {
-    virtual sample play(const instruction& tone, double time) const
+    sawtooth(const notation::instruments::sawwave& data)
+        : instruction(data)
+        , freq(util::tone_to_freq(data.pitch()))
+    {}
+
+    virtual sample play(double t, double dt)
     {
-        double wavelen = 1.0/tone.freq;
-        double rest = pmod(time, wavelen);
+        double wavelen = 1.0/freq;
+        double rest = math::pmod(t, wavelen);
 
         double a = 0;
         if (rest < 0.5) { // up slope
@@ -199,41 +481,83 @@ struct sawtooth : public instrument
         } else {
             a = 1 - 4*(rest - 0.5);
         }
-        return sample(a * tone.left_volume, a*tone.right_volume);
+        return sample(a, a);
     }
+
+    double freq;
+    std::shared_ptr<vol::envelope> envelope;
 };
 
-std::shared_ptr<instrument>
-instrument_factory(std::string which)
+struct squarewave : public instruction
 {
-    if (which == "sine") {
-        return std::shared_ptr<instrument>(new sine());
-    } else if (which == "saw") {
-        return std::shared_ptr<instrument>(new sawtooth());
-    } else {
-        return std::shared_ptr<instrument>(new sine()); // default instrument
+    squarewave(const notation::instruments::squarewave& data)
+        : instruction(data)
+        , freq(util::tone_to_freq(data.pitch()))
+    {}
+
+    virtual sample play(double t, double dt)
+    {
+        double wavelen = 1.0/freq;
+        double rest = math::pmod(t, wavelen);
+
+        double a = 0;
+        if (rest < 0.5) { // bottom of waveform
+            a = -1;
+        } else {          // top of waveform
+            a = 1;
+        }
+        return sample(a, a);
     }
+
+    virtual sample volume(double t, double dt)
+    {
+        return envelope->volume(t, dt);
+    }
+
+    double freq;
+    std::shared_ptr<vol::envelope> envelope;
+};
+
+struct factory_visitor : public notation::instruments::instrument_visitor
+{
+    factory_visitor()
+        : obj(nullptr)
+    {}
+
+    void visit(const notation::instruments::sinewave& env)
+    {
+        obj = std::shared_ptr<instruction>(new sine(env));
+    }
+    void visit(const notation::instruments::sawwave& env)
+    {
+        obj = std::shared_ptr<instruction>(new sawtooth(env));
+    }
+    void visit(const notation::instruments::squarewave& env)
+    {
+        obj = std::shared_ptr<instruction>(new squarewave(env));
+    }
+
+    std::shared_ptr<instruction>
+    getobj()
+    {
+        return obj;
+    }
+
+    double start;
+    double stop;
+    std::shared_ptr<instruction> obj;
+};
+
+std::shared_ptr<instruction>
+factory(const notation::instruments::instrument& instr)
+{
+    factory_visitor v;
+    instr.accept(v);
+    return v.getobj();
 }
 
+} /* end namespace instructions */
 
-typedef std::priority_queue<
-    instruction,
-    std::vector<instruction>,
-    std::greater<instruction>
-    > piano_roll;
-
-
-void make_melody(
-        const std::vector<double>& tones,
-        double start_t, double dt, piano_roll& pr
-        )
-{
-    double t = start_t;
-    for (auto tone : tones) {
-        pr.push(instruction(tone_to_freq(tone), t, t+dt, "sine"));
-        t += dt;
-    }
-}
 
 /**
  * A class for playing piano rolls.
@@ -247,50 +571,35 @@ void make_melody(
  */
 class player
 {
+    struct ptrcmp {
+        bool operator()(
+                const std::shared_ptr<const instructions::instruction>& a,
+                const std::shared_ptr<const instructions::instruction>& b
+        ) {
+            return a->start > b->start;
+        }
+    };
+    typedef std::priority_queue<
+        std::shared_ptr<instructions::instruction>,
+        std::vector<std::shared_ptr<instructions::instruction>>,
+        ptrcmp
+        > piano_roll;
+
     double time;
     piano_roll roll;
-    std::list<instruction> active;
-    std::map<std::string, std::shared_ptr<instrument>> instrs;
+    std::list<std::shared_ptr<instructions::instruction>> active;
 
-    // makes sure that the volume envelope goes to zero as the instruction
-    // starts and as it approaches the end, to avoid crackling.
-    double uncrackle_volume(const instruction& inst, double time) const
-    {
-        const double fadeout = 0.004;
-        if (time - inst.start < fadeout) {
-            return (time - inst.start)/fadeout;
-        } else if (inst.end - time < fadeout) {
-            return (inst.end - time)/fadeout;
-        } else {
-            return 1;
-        }
-    }
-
-    // calculates the current overall volume of instruments and
-    // returns it. Also uses uncrackle_volume to figure that out, since it
-    // results in crackling anyways if we don't do that.
-    double volume_norm() const
-    {
-        double left = 0;
-        double right = 0;
-        for (auto p : active) {
-            double decrackle = uncrackle_volume(p, time);
-            left  += p.left_volume * decrackle;
-            right += p.right_volume * decrackle;
-        }
-        if (left < 1 ) {left = 1; }
-        if (right < 1) {right = 1;}
-        return std::max(left, right);
-    }
-
+    sample sound_;
 public:
-    player(piano_roll roll)
+    player(notation::song song)
         : time(0)
-        , roll(roll)
+        , roll()
         , active()
+        , sound_()
     {
-        instrs["sine"] = instrument_factory("sine");
-        instrs["saw"]  = instrument_factory("saw");
+        for (auto instr : song.get_song()) {
+            roll.push(instructions::factory(*instr));
+        }
     }
 
     /**
@@ -299,6 +608,7 @@ public:
      */
     void advance(double dt)
     {
+        using std::max;
         assert((dt >= 0) && "Not meant to go backwards!");
 
         time += dt;
@@ -306,7 +616,7 @@ public:
         // add all instruments that have to sound at this time
         if (!roll.empty()) {
             auto vrh = roll.top();
-            if (vrh.start <= time) {
+            if (vrh->start <= time) {
                 active.push_back(vrh);
                 roll.pop();
             }
@@ -316,12 +626,27 @@ public:
         auto p = active.begin();
         auto e = active.end();
         while (p != e) {
-            if (p->end < time) {
+            if ((*p)->end < time) {
                 p = active.erase(p);
             } else {
                 ++p;
             }
         }
+
+        // compute sound
+        double normalize = 0;
+        sample s(0, 0);
+        for (auto p : active) {
+            auto out = p->play(time, dt);
+            auto vol = p->envelope->volume(time, dt);
+            s.left  += out.left  * vol.left;
+            s.right += out.right * vol.right;
+            normalize += max(vol.right, vol.left);
+        }
+        normalize = max(normalize, 1.0);
+        s.left /= normalize;
+        s.right /= normalize;
+        sound_ = s;
     }
 
     /**
@@ -330,22 +655,10 @@ public:
      */
     sample sound()
     {
-        double normalize = 1/volume_norm();
-        sample s(0, 0);
-        for (auto p : active) {
-            if (instrs.count(p.instr)) { // if we have the instrument
-                auto out = instrs[p.instr]->play(p, time);
-                double decrackle = uncrackle_volume(p, time);
-                s.left  += out.left  * normalize * decrackle;
-                s.right += out.right * normalize * decrackle;
-            } else {
-                std::cerr << "Could not find instrument \"" << p.instr << "\""
-                    << std::endl;
-            }
-        }
-        return s;
+        return sound_;
     }
 }; /* end struct player */
+} /* end namespace player */
 
 } /* end namespace sgr */
 #endif
