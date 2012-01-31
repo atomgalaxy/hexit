@@ -7,7 +7,11 @@
  * @author Gašper Ažman, gasper.azman@gmail.com
  * @since 2012-01-04
  */
+// local includes
+#include "framework.hpp"
+#include "math.hpp"
 
+// global includes
 #include <cstddef> // for size_t
 #include <cassert> // for assert
 #include <cmath>   // for sin, cos, M_PI
@@ -25,296 +29,152 @@
 #include <map>
 #include <set>
 
+
 namespace sgr {
-
-namespace math {
-
-double pmod(double a, double b)
-{
-    return (a/b - floor(a/b));
-}
-
-double mod(double a, double b)
-{
-    return (a/b - floor(a/b)) * b;
-}
-
-} /* end namespace math */
-
-namespace notation {
-
-namespace vol {
-
-struct simple;
-struct envelope_visitor {
-    virtual void visit(const simple& s) = 0;
-};
-
-struct envelope : public std::enable_shared_from_this<envelope> {
-    virtual void accept(envelope_visitor& vis) const = 0;
-};
-
-struct simple : public envelope {
-    simple(double vol_left=0.7, double vol_right=0.7)
-        : left(vol_left)
-        , right(vol_right)
-    {}
-
-    double left;
-    double right;
-
-    /// visitor implementation.
-    void accept(envelope_visitor& v) const { v.visit(*this); }
-};
-
-} /* end namespace vol */
-
-
-namespace instruments {
-
-struct sinewave;
-struct sawwave;
-struct squarewave;
-
-struct instrument_visitor
-{
-    virtual void visit(const sinewave& s) = 0;
-    virtual void visit(const sawwave& s) = 0;
-    virtual void visit(const squarewave& s) = 0;
-};
-
-struct instrument : public std::enable_shared_from_this<instrument> {
-    /// principal frequency, in halfnotes from a440
-    virtual double pitch() const = 0;
-    /// the start of the note, in seconds.
-    virtual double start() const = 0;
-    /// the end of the note, in seconds.
-    virtual double end() const = 0;
-
-    /// returns the volume envelope
-    virtual std::shared_ptr<const vol::envelope> envelope() const = 0;
-
-    /// visitor declaration
-    virtual void accept(instrument_visitor& vis) const = 0;
-};
-
-struct sinewave : public instrument
-{
-public:
-    sinewave(double pitch_, double start_, double duration_,
-            std::shared_ptr<const vol::envelope> envelope_)
-        : pitch_(pitch_)
-        , start_(start_)
-        , end_(start_ + duration_)
-        , envelope_(envelope_)
-    {}
-    virtual double pitch() const { return pitch_; }
-    virtual double start() const { return start_; }
-    virtual double end() const   { return end_; }
-    virtual std::shared_ptr<const  vol::envelope> envelope() const
-    {
-        return envelope_;
-    }
-    virtual void accept(instrument_visitor& vis) const
-    {
-        vis.visit(*this);
-    }
-private:
-    double pitch_;
-    double start_;
-    double end_;
-    std::shared_ptr<const vol::envelope> envelope_;
-};
-
-struct sawwave : public instrument
-{
-public:
-    sawwave(double pitch_, double start_, double duration_,
-            std::shared_ptr<const vol::envelope> envelope_)
-        : pitch_(pitch_)
-        , start_(start_)
-        , end_(start_ + duration_)
-        , envelope_(envelope_)
-    {}
-    virtual double pitch() const { return pitch_; }
-    virtual double start() const { return start_; }
-    virtual double end() const   { return end_; }
-    virtual std::shared_ptr<const vol::envelope> envelope() const
-    {
-        return envelope_;
-    }
-    virtual void accept(instrument_visitor& vis) const
-    {
-        vis.visit(*this);
-    }
-private:
-    double pitch_;
-    double start_;
-    double end_;
-    std::shared_ptr<const vol::envelope> envelope_;
-};
-
-struct squarewave : public instrument
-{
-public:
-    squarewave(double pitch_, double start_, double duration_,
-            std::shared_ptr<const vol::envelope> envelope_)
-        : pitch_(pitch_)
-        , start_(start_)
-        , end_(start_ + duration_)
-        , envelope_(envelope_)
-    {}
-    virtual double pitch() const { return pitch_; }
-    virtual double start() const { return start_; }
-    virtual double end() const   { return end_; }
-    virtual std::shared_ptr<const  vol::envelope> envelope() const
-    {
-        return envelope_;
-    }
-    virtual void accept(instrument_visitor& vis) const
-    {
-        vis.visit(*this);
-    }
-private:
-    double pitch_;
-    double start_;
-    double end_;
-    std::shared_ptr<const vol::envelope> envelope_;
-};
-
-} /* end namespace instruments */
-
-struct song {
-public:
-    typedef instruments::instrument note_t;
-    /* LISTENER PATTERN */
-    struct note_listener {
-        virtual void notify(const std::shared_ptr<const note_t> note) = 0;
-    };
-private:
-    /// notes
-    std::vector<std::shared_ptr<const instruments::instrument>> notes;
-
-    /// listeners
-    std::set<std::shared_ptr<note_listener>> listeners;
-
-public:
-
-    void listen(std::shared_ptr<note_listener> listener) {
-        listeners.insert(listener);
-    }
-
-    void remove_listener(std::shared_ptr<note_listener> listener) {
-        listeners.erase(listener);
-    }
-
-    /* actual song functions */
-    void add_note(const std::shared_ptr<const note_t> note)
-    {
-        notes.push_back(note);
-        for (auto listener : listeners) {
-            listener->notify(note);
-        }
-    }
-
-    const
-    std::vector<std::shared_ptr<const note_t>>
-    active_notes(double time)
-    {
-        std::vector<std::shared_ptr<const note_t>> instrs;
-        for (auto note : notes) {
-            if (note->start() >= time && note->end() <= time) {
-                instrs.push_back(note);
-            }
-        }
-    }
-
-    const decltype(notes)& get_song()
-    {
-        return notes;
-    }
-
-};
-
-} /* end namespace notation */
 
 namespace composition {
 
-class scales
-{
-public:
-    // diatonic scales
-    // major scales
-    std::vector<double> ionian; // normal major (1) (C triad)
-    std::vector<double> lydian; // (4)
-    std::vector<double> mixolydian; // (5)
-    // minor scales
-    std::vector<double> dorian;   // (2) (Dm triad)
-    std::vector<double> phrygian; // (3) (Em triad)
-    std::vector<double> aeolian; // normal minor (6)
-    // diminished
-    std::vector<double> locrian; // (7)
+/// a chord is a series of tone-offsets relative to a scale.
+/// for instance, 0, 2, 4 (1, 3, 5) is the usual chord, that, when played in a
+/// major scale, gives a major chord.
+typedef std::vector<int> chord;
 
-    // others
-    std::vector<double> pentatonic_minor;
-    std::vector<double> pentatonic_major;
-    std::vector<double> pentatonic_egyptian;
-    std::vector<double> pentatonic_blues_major;
-    std::vector<double> pentatonic_blues_minor;
+/// tones are semitone offsets from a440.
+typedef std::vector<double> tones_type;
 
-    std::vector<double> harmonic_minor;
-    std::vector<double> melodic_minor;
-    std::vector<double> hungarian_minor;
+struct scale {
+    scale()
+        : offsets() {}
 
-    std::vector<double> double_harmonic;
-    std::vector<double> arabic_harmonic; // quater-tone version
-    std::vector<double> hungarian_gypsy;
+    template<typename Arg>
+    scale(Arg&& offsets)
+        : offsets(std::forward<Arg>(offsets))
+    {}
 
-    scales()
+    scale(scale&& sc)
+        : offsets(std::move(sc.offsets))
+    {}
+
+    scale mode(int n) const
     {
+        using math::mod;
+        n -= 1;
+        size_t size = offsets.size();
+        double first = offsets[n % size];
+        std::vector<double> newscale(size);
+        for (size_t i = 0; i < size; ++i) {
+            newscale[i] = mod((offsets[(n+i)%size]-first + 12), 12);
+        }
+        return scale(std::move(newscale));
+    }
+
+    /**
+     * Get a particular tone from a scale.
+     *
+     * @param basenote - the note that is considered the "base" of the scale.
+     * For instance, if this scale was a major scale, and you wanted C-major,
+     * you set basenote = -9. This is because basenotes are relative to a440.
+     * 
+     * @param interval the offset within the scale. If you want the basenote,
+     * put in 0. If you want the second note, put in 1. If you want the last
+     * note, but one octave down, put in -1.
+     *
+     * @return the tone, in halftone offsets from a440
+     */
+    double tone(double basenote, int interval)
+    {
+        size_t n = offsets.size();
+        int octaves = interval / n;
+        interval = interval % n;
+
+        if (interval < 0) {
+            interval   += n;
+            octaves -= 1;
+        }
+
+        basenote += octaves * 12;
+        return offsets[interval] + basenote;
+    }
+
+    /**
+     * Get tones from a chord.
+     *
+     * @param basenote - the note that is considered the "base" of the scale.
+     * For instance, if this scale was a major scale, and you wanted C-major,
+     * you set basenote = -9. This is because basenotes are relative to a440.
+     *
+     * @param ch the chord to convert to notes.
+     *
+     * @return the tones, in halfnote offsets from a440.
+     */
+    tones_type
+    tones(double basenote, const chord& ch)
+    {
+        std::vector<double> t;
+        for (auto i : ch) {
+            t.push_back(tone(basenote, i));
+        }
+        return t;
+    }
+
+private:
+    std::vector<double> offsets;
+};
+
+
+class resources
+{
+private:
+    std::map<std::string, scale> scales_;
+    std::map<std::string, chord> chords_;
+public:
+
+    resources()
+        : scales_()
+        , chords_()
+    {
+        typedef std::vector<double> sc_t;
         using namespace boost::assign; // for operator+=() on vector
         // diatonics
-        ionian    += 0,2,4,5,7,9,11;
-        dorian     = mode(ionian, 2);
-        phrygian   = mode(ionian, 3);
-        lydian     = mode(ionian, 4);
-        mixolydian = mode(ionian, 5);
-        aeolian    = mode(ionian, 6);
-        locrian    = mode(ionian, 7);
+        scales_["ionian"]     = scale(sc_t{0,2,4,5,7,9,11});
+        scales_["dorian"]     = scales_["ionian"].mode(2);
+        scales_["phrygian"]   = scales_["ionian"].mode(3);
+        scales_["lydian"]     = scales_["ionian"].mode(4);
+        scales_["mixolydian"] = scales_["ionian"].mode(5);
+        scales_["aeolian"]    = scales_["ionian"].mode(6);
+        scales_["locrian"]    = scales_["ionian"].mode(7);
 
         // variations on the minor
         //                 1 2 3 4 5 6 7
         //                 C D E F G A H
         // ionian:         0 2 4 5 7 9 11
         // aeolian:        0 2 3 5 7 8 10
-        harmonic_minor  += 0,2,3,5,7,8,11;
-        hungarian_minor += 0,2,3,6,7,8,11;
-        melodic_minor   += 0,2,3,5,7,9,11;
-        double_harmonic += 0,1,3,4,7,8,11;
-        arabic_harmonic += 0,0.5,3,4,7,8,11.5;
-        hungarian_gypsy  = mode(double_harmonic, 4);
+        scales_["harmonic minor"]  = scale(sc_t{0,2,3,5,7,8,11});
+        scales_["hungarian minor"] = scale(sc_t{0,2,3,6,7,8,11});
+        scales_["melodic minor"]   = scale(sc_t{0,2,3,5,7,9,11});
+        scales_["double harmonic"] = scale(sc_t{0,1,3,4,7,8,11});
+        scales_["arabic harmonic"] = scale(sc_t{0,0.5,3,4,7,8,11.5});
+        scales_["hungarian gypsy"] = scales_["double harmonic"].mode(4);
 
-        pentatonic_minor      += 0,3,5,7,10;
-        pentatonic_major       = mode(pentatonic_minor, 2);
-        pentatonic_egyptian    = mode(pentatonic_minor, 3);
-        pentatonic_blues_major = mode(pentatonic_minor, 4);
-        pentatonic_blues_minor = mode(pentatonic_minor, 5);
+        scales_["pentatonic minor"] = scale(sc_t{0,3,5,7,10});
+        scales_["pentatonic major"] = scales_["pentatonic minor"].mode(2);
+        scales_["pentatonic egyptian"] = scales_["pentatonic minor"].mode(3);
+        scales_["pentatonic blues major"]=scales_["pentatonic minor"].mode(4);
+        scales_["pentatonic blues minor"]=scales_["pentatonic minor"].mode(5);
+
+        chords_["trichord"] = chord({0,2,4});
     }
 
-    std::vector<double>
-    mode(const std::vector<double>& scale, size_t n)
-    {
-        using math::mod;
-        n -= 1;
-        size_t size = scale.size();
-        double first = scale[n % size];
-        std::vector<double> newscale(size);
-        for (size_t i = 0; i < size; ++i) {
-            newscale[i] = mod((scale[(n+i)%size]-first + 12), 12);
-        }
-        return newscale;
-    }
+    inline
+    const std::map<std::string, scale>&
+    scales() { return scales_; }
+
+    inline
+    const std::map<std::string, chord>&
+    chords() { return chords_; }
+
 };
+
 
 } /* end namespace composition */
 
@@ -353,6 +213,7 @@ struct envelope
 {
     constexpr static double GLOBAL_FALLOFF = 0.02;
     virtual sample volume(double t, double dt) = 0;
+    virtual ~envelope() {}
 };
 
 struct simple : public envelope
@@ -365,13 +226,14 @@ struct simple : public envelope
         , start(start)
         , end(end)
     {}
-    virtual sample volume(double t, double dt)
+    virtual sample volume(double t, double /* dt */)
     {
         using std::min;
         // decrackle
         double edge_dist = min(min(t - start, end - t) / GLOBAL_FALLOFF, 1.0);
         return sample(data.left * edge_dist, data.right * edge_dist);
     }
+    virtual ~simple() {}
 
     notation::vol::simple data;
     double start;
@@ -444,6 +306,7 @@ struct instruction
     }
 
     virtual sample play(double t, double dt) = 0;
+    virtual ~instruction() {}
 }; /*  end struct instruction */
 
 struct sine : public instruction
@@ -453,7 +316,7 @@ struct sine : public instruction
         , freq(util::tone_to_freq(data.pitch()))
     {}
 
-    virtual sample play(double t, double dt)
+    virtual sample play(double t, double /* dt */)
     {
         double x = util::TAU * freq * t;
         auto a = sin(x);
@@ -470,7 +333,7 @@ struct sawtooth : public instruction
         , freq(util::tone_to_freq(data.pitch()))
     {}
 
-    virtual sample play(double t, double dt)
+    sample play(double t, double /* dt */)
     {
         double wavelen = 1.0/freq;
         double rest = math::pmod(t, wavelen);
@@ -485,7 +348,6 @@ struct sawtooth : public instruction
     }
 
     double freq;
-    std::shared_ptr<vol::envelope> envelope;
 };
 
 struct squarewave : public instruction
@@ -495,7 +357,7 @@ struct squarewave : public instruction
         , freq(util::tone_to_freq(data.pitch()))
     {}
 
-    virtual sample play(double t, double dt)
+    virtual sample play(double t, double /* dt */)
     {
         double wavelen = 1.0/freq;
         double rest = math::pmod(t, wavelen);
@@ -515,7 +377,6 @@ struct squarewave : public instruction
     }
 
     double freq;
-    std::shared_ptr<vol::envelope> envelope;
 };
 
 struct factory_visitor : public notation::instruments::instrument_visitor
@@ -543,8 +404,6 @@ struct factory_visitor : public notation::instruments::instrument_visitor
         return obj;
     }
 
-    double start;
-    double stop;
     std::shared_ptr<instruction> obj;
 };
 
@@ -562,7 +421,7 @@ factory(const notation::instruments::instrument& instr)
 /**
  * A class for playing piano rolls.
  * Use like so:
- * //  make piano roll
+ * //  create piano roll
  * player pl(music);
  * while(true) {
  *  sample s = pl.sound();

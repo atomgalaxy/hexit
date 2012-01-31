@@ -1,5 +1,5 @@
 /**
- * @file sndgraph.cc
+ * @file sndgraph.cpp
  * Main file for the sngraph app.
  *
  * @author Gašper Ažman (GA), gasper.azman@gmail.com
@@ -36,8 +36,8 @@ struct callback_data {
 
     callback_data(sgr::player::player track, size_t samples)
         : track(track)
-        , sound()
         , fmt()
+        , sound()
     {
         fmt.callback = audio_callback;
         fmt.channels = 2;
@@ -54,7 +54,22 @@ struct callback_data {
     }
 };
 
-void fmtdataToStream(const callback_data& data, Uint8 *stream, int len);
+void fmtdataToStream(
+        const callback_data& data,
+        Uint8 *stream,
+        size_t stream_len
+        )
+{
+    size_t end = data.sound.size();
+    for (size_t i = 0; (i < end) && (2*i+1 < stream_len); ++i) {
+        int16_t right = data.sound[i].right * 0x7FFF;
+        int16_t left = data.sound[i].left * 0x7FFF;
+
+        reinterpret_cast<int16_t*>(stream)[i*2] = left;
+        reinterpret_cast<int16_t*>(stream)[i*2+1] = right;
+    }
+}
+
 void audio_callback(void *userdata, Uint8 *stream_in, int len_in) {
     if (userdata == NULL) { return; }
 
@@ -64,42 +79,25 @@ void audio_callback(void *userdata, Uint8 *stream_in, int len_in) {
     double dt_per_tick = 1/static_cast<double>(samples_per_sec);
 
     size_t end = fmt_data.sound.size();
-    for (int tick = 0; tick < end; ++tick) {
+    for (size_t tick = 0; tick < end; ++tick) {
         fmt_data.track.advance(dt_per_tick);
         fmt_data.sound[tick] = fmt_data.track.sound();
     }
     fmtdataToStream(fmt_data, stream_in, len_in);
 }
 
-void fmtdataToStream(const callback_data& data, Uint8 *stream, int len)
-{
-    size_t end = data.sound.size();
-    for (size_t i = 0; i < end; ++i) {
-        int16_t right = data.sound[i].right * 0x7FFF;
-        int16_t left = data.sound[i].left * 0x7FFF;
 
-        reinterpret_cast<int16_t*>(stream)[i*2] = left;
-        reinterpret_cast<int16_t*>(stream)[i*2+1] = right;
-    }
-}
-
-int main( int argc, char *argv[] )
+int main( int /* argc */, char ** /* argv */ )
 {
 
     sgr::notation::song song;
 
-    sgr::composition::scales sc;
+    sgr::composition::resources stuff;
 
     using sgr::notation::instruments::sinewave;
     using sgr::notation::vol::simple;
 
-    song.add_note(std::shared_ptr<sinewave>(new sinewave(0, 0, 5, std::shared_ptr<simple>(new simple()))));
-    song.add_note(std::shared_ptr<sinewave>(new sinewave(4, 1, 6, std::shared_ptr<simple>(new simple()))));
-    song.add_note(std::shared_ptr<sinewave>(new sinewave(7, 2, 7, std::shared_ptr<simple>(new simple()))));
-
-//    make_melody(sc.ionian, 0, 0.5, pr);
-//    make_melody(sc.aeolian, 4.0, 0.5, pr);
-//    make_melody(sc.dorian, 8.0, 0.5, pr);
+    song << sinewave::create(0, 0, 5, simple::create());
 
     callback_data data( sgr::player::player(song), 512);
 
