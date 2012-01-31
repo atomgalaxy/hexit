@@ -1,4 +1,5 @@
 project(aluresample)
+
 cmake_minimum_required(VERSION 2.8)
 
 add_definitions("-pedantic -Wall -Weffc++ -std=gnu++0x -ggdb3")

@@ -11,30 +11,28 @@
 #include <utility>
 #include <iostream>
 
-template <typename T>
+struct buffer
+{
+    typedef float value_type;
+    std::vector<float> buf;
+    size_t sampling_freq;
+};
+
 struct play_message
 {
-    play_message(const buffer<T>& buf, double volume, double start_time, double
-            stop_time)
+    play_message(const buffer& buf, double volume, double start_time, double stop_time)
         : buf(buf)
         , volume(volume)
         , start_time(start_time)
-        , end_time(end_time)
+        , stop_time(stop_time)
     {}
 
-    const buffer<T>& buf;
+    const buffer& buf;
     double volume;
     double start_time;
     double stop_time;
 };
 
-template <typename T>
-struct buffer
-{
-    typedef typename T value_type;
-    std::vector<T> buf;
-    size_t sampling_freq;
-};
 
 class player
 {
@@ -71,6 +69,11 @@ public:
 
     double
     get_time() {
+        return 0;
+    }
+
+    void play(const buffer& b, double volume, double start, double end)
+    {
 
     }
 private:
