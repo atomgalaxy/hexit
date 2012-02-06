@@ -7,7 +7,8 @@
  * @since 2010-06-03 03:50:57 PM
  */
 
-#include "sndgraph.hpp"
+#include "player.hpp"
+#include "composition.hpp"
 
 #include <SDL/SDL.h>
 #include <SDL/SDL_audio.h>
@@ -89,15 +90,29 @@ void audio_callback(void *userdata, Uint8 *stream_in, int len_in) {
 
 int main( int /* argc */, char ** /* argv */ )
 {
+    using namespace sgr::notation;
+    try {
 
     sgr::notation::song song;
 
     sgr::composition::resources stuff;
 
-    using sgr::notation::instruments::sinewave;
-    using sgr::notation::vol::simple;
+    song << timing::linear::create(200, 0.5, 50);
 
-    song << sinewave::create(0, 0, 5, simple::create());
+    for (size_t i = 0; i < 200; i+=4) {
+        song << note(
+                    instrument::sinewave::create(),
+                    volume::fade::create(0,0,0.7,0.7),
+                    pitch::constant::create(0),
+                    hit(i,2,1)
+                    )
+            << note(
+                    instrument::sinewave::create(),
+                    volume::simple::create(0.4,0.5),
+                    pitch::constant::create(-3),
+                    hit(i+2,2,1)
+                    );
+    }
 
     callback_data data( sgr::player::player(song), 512);
 
@@ -110,5 +125,8 @@ int main( int /* argc */, char ** /* argv */ )
         usleep(1600);
     }
 
+    } catch ( boost::exception& e) {
+        std::cerr << boost::diagnostic_information(e);
+    }
     return EXIT_SUCCESS;
 }               /* ----------  end of function main  ---------- */

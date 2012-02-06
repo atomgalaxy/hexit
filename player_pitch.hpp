@@ -1,0 +1,98 @@
+#ifndef SGR_PLAYER_PITCH_HPP
+#define SGR_PLAYER_PITCH_HPP
+/**
+ * @file player_pitch.hpp
+ * 
+ *
+ * @author Gašper Ažman, gasper.azman@gmail.com
+ * @since 2012-02-05
+ */
+
+#include "notation_pitch.hpp"
+#include "player_timing.hpp"
+#include "math.hpp"
+#include <memory>
+
+namespace sgr {
+namespace player {
+namespace pitch {
+
+struct pitch {
+    typedef std::shared_ptr<pitch> pointer_type;
+    virtual double get_pitch(
+            const timing::period& bounds, const timing::time& now) = 0;
+    virtual ~pitch() {}
+};
+
+struct constant : public pitch {
+    constant(const notation::pitch::constant& data)
+        : data(data) {}
+
+    virtual double get_pitch(
+            const timing::period& /* bounds */, const timing::time& /* now */)
+    {
+        return data.pitch;
+    }
+
+    virtual ~constant() {}
+    notation::pitch::constant data;
+};
+
+struct linear_slide : public pitch {
+    linear_slide(const notation::pitch::linear_slide& data)
+        : data(data) {}
+
+    virtual double get_pitch(
+            const timing::period& bounds, const timing::time& now)
+    {
+        double path = bounds.beat_fraction(now);
+        return math::linear_interpolate(
+                data.start_pitch, data.end_pitch, path);
+
+    }
+
+    virtual ~linear_slide() {}
+    notation::pitch::linear_slide data;
+};
+
+namespace impl_detail {
+    struct factory_visitor : public notation::pitch::pitch_visitor
+    {
+        pitch::pointer_type obj;
+        factory_visitor()
+            : obj(nullptr)
+        {}
+
+        void visit(const notation::pitch::constant& env) {
+            obj = pitch::pointer_type(new constant(env));
+        }
+        void visit(const notation::pitch::linear_slide& env)
+        {
+            obj = pitch::pointer_type(new linear_slide(env));
+        }
+
+
+        decltype(obj)
+        getobj()
+        {
+            return obj;
+        }
+
+    };
+}
+
+pitch::pointer_type
+factory(const notation::pitch::pitch& instr)
+{
+    impl_detail::factory_visitor v;
+    instr.accept(v);
+    return v.getobj();
+}
+
+}/* end namespace pitch */
+}/* end namespace player */
+}/* end namespace sgr */
+
+
+
+#endif

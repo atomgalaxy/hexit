@@ -116,21 +116,22 @@ class song {
 public:
 
     song()
-        : notes()
+        : notes_()
+        , timings_()
         , listener(nullptr)
     {}
 
     /* actual song functions */
     song& operator<<(const song& s)
     {
-        for (auto n : s.notes) {
+        for (auto n : s.notes_) {
             add_note(n);
         }
         return *this;
     }
-    song& operator<<(const std::vector<note>& notes)
+    song& operator<<(const std::vector<note>& notes_)
     {
-        for (auto n : notes) {
+        for (auto n : notes_) {
             add_note(n);
         }
         return *this;
@@ -143,16 +144,26 @@ public:
 
     song& add_note(const note n)
     {
-        notes.push_back(n);
+        notes_.push_back(n);
         if (listener) { listener->notify(n); }
         return *this;
     }
 
+    song& add_timing(const timing::timing::pointer_type& t)
+    {
+        timings_.push_back(t);
+        return *this;
+    }
+    song& operator<<(const timing::timing::pointer_type& t)
+    {
+        return add_timing(t);
+    }
+
     const std::vector<note>
-    active_notes(double time) const
+    active_notes_(double time) const
     {
         std::vector<note> instrs;
-        for (auto note : notes) {
+        for (auto note : notes_) {
             auto start = note.duration.start;
             auto end   = note.duration.start + note.duration.duration;
             if (start >= time && time < end) {
@@ -178,14 +189,18 @@ public:
     /* END LISTENER SUPPORT */
 
 private:
-    /// notes
-    std::vector<note> notes;
-    std::vector<timing::timing::pointer_type> timings;
+    /// notes_
+    std::vector<note> notes_;
+    std::vector<timing::timing::pointer_type> timings_;
 public:
 
-    const decltype(notes)& get_song()
+    const decltype(notes_)& notes()
     {
-        return notes;
+        return notes_;
+    }
+    const decltype(timings_)& timings()
+    {
+        return timings_;
     }
 
 private:
