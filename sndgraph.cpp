@@ -88,6 +88,7 @@ void audio_callback(void *userdata, Uint8 *stream_in, int len_in) {
 }
 
 
+
 int main( int /* argc */, char ** /* argv */ )
 {
     using namespace sgr::notation;
@@ -97,22 +98,48 @@ int main( int /* argc */, char ** /* argv */ )
 
     sgr::composition::resources stuff;
 
-    song << timing::linear::create(200, 0.5, 50);
+    song << timing::constant::create(10, 5);
+    song << note(
+                instrument::sinewave::create(),
+                volume::simple::create(0.8,0.8),
+                pitch::constant::create(-9),
+                hit(0,2,1)
+                )
+         << note(
+                instrument::sinewave::create(),
+                volume::simple::create(0.8,0.8),
+                pitch::constant::create(-9),
+                hit(2.5,2,1)
+                )
+         << note(
+                instrument::sinewave::create(),
+                volume::simple::create(0.8,0.8),
+                pitch::constant::create(-9),
+                hit(5,2,1)
+                )
+         << note(
+                instrument::sinewave::create(),
+                volume::simple::create(0.8,0.8),
+                pitch::constant::create(-9),
+                hit(7.5,2,1)
+                );
+
+/*    song << timing::linear::create(200, 0.5, 50);
 
     for (size_t i = 0; i < 200; i+=4) {
         song << note(
                     instrument::sinewave::create(),
                     volume::fade::create(0,0,0.7,0.7),
-                    pitch::constant::create(0),
+                    pitch::constant::create(-32),
                     hit(i,2,1)
                     )
             << note(
                     instrument::sinewave::create(),
                     volume::simple::create(0.4,0.5),
-                    pitch::constant::create(-3),
+                    pitch::constant::create(-32),
                     hit(i+2,2,1)
                     );
-    }
+    }*/
 
     callback_data data( sgr::player::player(song), 512);
 
