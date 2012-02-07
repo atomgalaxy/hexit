@@ -1,5 +1,5 @@
 /**
- * @file sndgraph.cc
+ * @file sndgraph.cpp
  * Main file for the sngraph app.
  *
  * @author Gašper Ažman (GA), gasper.azman@gmail.com
@@ -7,7 +7,8 @@
  * @since 2010-06-03 03:50:57 PM
  */
 
-#include "sndgraph.hpp"
+#include "player.hpp"
+#include "composition.hpp"
 
 #include <SDL/SDL.h>
 #include <SDL/SDL_audio.h>
@@ -30,14 +31,14 @@ double dist(double in) {
 void audio_callback(void *userdata, Uint8 *stream_in, int len_in);
 
 struct callback_data {
-    player track;
+    sgr::player::player track;
     SDL_AudioSpec fmt;
-    vector<sample> sound;
+    vector<sgr::player::sample> sound;
 
-    callback_data(player track, size_t samples)
+    callback_data(sgr::player::player track, size_t samples)
         : track(track)
-        , sound()
         , fmt()
+        , sound()
     {
         fmt.callback = audio_callback;
         fmt.channels = 2;
@@ -54,7 +55,22 @@ struct callback_data {
     }
 };
 
-void fmtdataToStream(const callback_data& data, Uint8 *stream, int len);
+void fmtdataToStream(
+        const callback_data& data,
+        Uint8 *stream,
+        size_t stream_len
+        )
+{
+    size_t end = data.sound.size();
+    for (size_t i = 0; (i < end) && (2*i+1 < stream_len); ++i) {
+        int16_t right = data.sound[i].right * 0x7FFF;
+        int16_t left = data.sound[i].left * 0x7FFF;
+
+        reinterpret_cast<int16_t*>(stream)[i*2] = left;
+        reinterpret_cast<int16_t*>(stream)[i*2+1] = right;
+    }
+}
+
 void audio_callback(void *userdata, Uint8 *stream_in, int len_in) {
     if (userdata == NULL) { return; }
 
@@ -64,37 +80,41 @@ void audio_callback(void *userdata, Uint8 *stream_in, int len_in) {
     double dt_per_tick = 1/static_cast<double>(samples_per_sec);
 
     size_t end = fmt_data.sound.size();
-    for (int tick = 0; tick < end; ++tick) {
+    for (size_t tick = 0; tick < end; ++tick) {
         fmt_data.track.advance(dt_per_tick);
         fmt_data.sound[tick] = fmt_data.track.sound();
     }
     fmtdataToStream(fmt_data, stream_in, len_in);
 }
 
-void fmtdataToStream(const callback_data& data, Uint8 *stream, int len)
-{
-    size_t end = data.sound.size();
-    for (size_t i = 0; i < end; ++i) {
-        int16_t right = data.sound[i].right * 0x7FFF;
-        int16_t left = data.sound[i].left * 0x7FFF;
 
-        reinterpret_cast<int16_t*>(stream)[i*2] = left;
-        reinterpret_cast<int16_t*>(stream)[i*2+1] = right;
+int main( int /* argc */, char ** /* argv */ )
+{
+    using namespace sgr::notation;
+    try {
+
+    sgr::notation::song song;
+
+    sgr::composition::resources stuff;
+
+    song << timing::linear::create(200, 0.5, 50);
+
+    for (size_t i = 0; i < 200; i+=4) {
+        song << note(
+                    instrument::sinewave::create(),
+                    volume::fade::create(0,0,0.7,0.7),
+                    pitch::constant::create(0),
+                    hit(i,2,1)
+                    )
+            << note(
+                    instrument::sinewave::create(),
+                    volume::simple::create(0.4,0.5),
+                    pitch::constant::create(-3),
+                    hit(i+2,2,1)
+                    );
     }
-}
 
-int main( int argc, char *argv[] )
-{
-
-    piano_roll pr;
-
-    sgr::scales sc;
-    make_melody(sc.ionian, 0, 0.5, pr);
-    make_melody(sc.aeolian, 4.0, 0.5, pr);
-    make_melody(sc.dorian, 8.0, 0.5, pr);
-    make_melody(sc.mixolydian, 12, 0.5, pr);
-
-    callback_data data(pr, 512);
+    callback_data data( sgr::player::player(song), 512);
 
     std::cout << "channels: " << (int) data.fmt.channels << " samples: " <<
         data.fmt.samples << " freq: " << data.fmt.freq << std::endl;
@@ -105,5 +125,8 @@ int main( int argc, char *argv[] )
         usleep(1600);
     }
 
+    } catch ( boost::exception& e) {
+        std::cerr << boost::diagnostic_information(e);
+    }
     return EXIT_SUCCESS;
 }               /* ----------  end of function main  ---------- */
