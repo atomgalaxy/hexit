@@ -9,26 +9,30 @@
  */
 
 #include <cmath>
+#include <tuple>
 
 namespace sgr {
     namespace math {
         /**
-         * A % B / B, for doubles. So, it tells us the fraction of B that
-         * remains after division. Faster than mod.
+         * Divides two numbers and returns a tuple of (division result,
+         * remainder).
+         * It holds that divisor * result + remainder = factor.
+         * Signs: the sign of the remainder is the same as the sign of the
+         * divisor. The sign of the result matches factor * divisor.
          */
-        double pmod(double a, double b)
+        template <typename T>
+        auto fmod(T factor, T divisor)
+            -> decltype(std::make_tuple(factor, factor))
         {
-            return (a/b - floor(a/b));
+            using std::make_tuple;
+            auto f = floor(factor / divisor);
+            auto r = std::fmod(factor, divisor);
+            if (f > 0) {
+                return make_tuple(f,r);
+            } else {
+                return make_tuple(f, r + factor);
+            }
         }
-
-        /**
-         * A % B, but for doubles.
-         */
-        double mod(double a, double b)
-        {
-            return (a/b - floor(a/b)) * b;
-        }
-
         /**
          * Linear interpolation between a and b,
          * t within 0-1 (not checked).

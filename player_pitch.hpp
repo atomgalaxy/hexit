@@ -19,40 +19,43 @@ namespace pitch {
 
 struct pitch {
     typedef std::shared_ptr<pitch> pointer_type;
-    virtual double get_pitch(
+    virtual units::tone get_pitch(
             const timing::period& bounds, const timing::time& now) = 0;
     virtual ~pitch() {}
 };
 
 struct constant : public pitch {
-    constant(const notation::pitch::constant& data)
+    notation::pitch::constant data;
+
+    constant(const decltype(data)& data)
         : data(data) {}
 
-    virtual double get_pitch(
+    virtual units::tone get_pitch(
             const timing::period& /* bounds */, const timing::time& /* now */)
     {
         return data.pitch;
     }
 
     virtual ~constant() {}
-    notation::pitch::constant data;
 };
 
 struct linear_slide : public pitch {
-    linear_slide(const notation::pitch::linear_slide& data)
+    notation::pitch::linear_slide data;
+
+    linear_slide(const decltype(data)& data)
         : data(data) {}
 
-    virtual double get_pitch(
+    virtual units::tone get_pitch(
             const timing::period& bounds, const timing::time& now)
     {
-        double path = bounds.beat_fraction(now);
-        return math::linear_interpolate(
-                data.start_pitch, data.end_pitch, path);
+        auto path = bounds.beat_fraction(now);
+        return units::tone{
+            math::linear_interpolate(
+                   data.start_pitch.value, data.end_pitch.value, path)};
 
     }
 
     virtual ~linear_slide() {}
-    notation::pitch::linear_slide data;
 };
 
 namespace impl_detail {

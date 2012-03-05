@@ -11,6 +11,7 @@
 #include "notation_instrument.hpp"
 #include "notation_volume.hpp"
 #include "notation_timing.hpp"
+#include "units.hpp"
 
 #include <vector>
 #include <set>
@@ -22,37 +23,37 @@ namespace notation {
  * Represents a duration and accentuation of a single note in a passage.
  */
 struct hit {
-    hit(double start, double duration, double accent)
-        : start(start)
-        , duration(duration)
-        , accent(accent)
-    {}
-
     /** start, in beats since start of sequence */
-    double start;
+    units::beat start;
     /** duration, in beats since start of sequence */
-    double duration;
+    units::beat duration;
     /** accent, 0-1. May represent volume or some other form of
      * accentuation. */
     double accent;
+
+    hit(decltype(start) start, decltype(duration) duration, decltype(accent) accent)
+        : start{start}
+        , duration{duration}
+        , accent{accent}
+    {}
+
 };
 
 /** Holds a single played note. */
 struct note {
-    note(   instrument::instrument::pointer_type instrument,
-            volume::volume::pointer_type volume,
-            pitch::pitch::pointer_type pitch,
-            hit duration)
-        : instrument(instrument)
-        , volume(volume)
-        , pitch(pitch)
-        , duration(duration)
-    {}
-
     instrument::instrument::pointer_type instrument;
     volume::volume::pointer_type         volume;
     pitch::pitch::pointer_type           pitch;
     hit                                  duration;
+
+    note(decltype(instrument) instrument, decltype(volume) volume,
+         decltype(pitch) pitch, decltype(duration) duration)
+        : instrument{instrument}
+        , volume{volume}
+        , pitch{pitch}
+        , duration{duration}
+    {}
+
 };
 
 /**
@@ -160,13 +161,13 @@ public:
     }
 
     const std::vector<note>
-    active_notes_(double time) const
+    active_notes_(units::beat beat) const
     {
         std::vector<note> instrs;
         for (auto note : notes_) {
             auto start = note.duration.start;
             auto end   = note.duration.start + note.duration.duration;
-            if (start >= time && time < end) {
+            if (start >= beat && beat < end) {
                 instrs.push_back(note);
             }
         }

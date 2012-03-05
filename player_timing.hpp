@@ -8,6 +8,7 @@
  * @author Gašper Ažman, gasper.azman@gmail.com
  * @since 2012-02-05
  */
+#include "units.hpp"
 
 namespace sgr {
     namespace player {
@@ -17,9 +18,9 @@ namespace sgr {
              */
             struct time {
                 /// The time, in seconds since start of song.
-                double t;
+                units::time t;
                 /// The number of the beat, since start of song.
-                double beat;
+                units::beat beat;
                 /** The time difference between two consecutive time structs.
                  * More or less constant, but we can afford it, and this allows
                  * for more flexible timing. You should use this for resolution
@@ -29,7 +30,7 @@ namespace sgr {
                  * For definite times (like starts and ends of notes), this
                  * should be zero.
                  */
-                double dt;
+                units::time dt;
                 /**
                  * Difference between two consecutive beat timings. You can use
                  * this to detect start of beat etc. like so:
@@ -39,8 +40,10 @@ namespace sgr {
                  * For definite beats (like starts and ends of notes), this
                  * should be zero.
                  */
-                double dbeat;
-                time(double t, double beat, double dt = 0, double dbeat = 0)
+                units::beat dbeat;
+                time(decltype(t) t, decltype(beat) beat,
+                     decltype(dt) dt = units::time{0},
+                     decltype(dbeat) dbeat = units::beat{0})
                     : t(t), beat(beat), dt(dt), dbeat(dbeat) {}
             };
 
@@ -52,10 +55,6 @@ namespace sgr {
 
                 period(time start, time end)
                     : start(start), end(end) {}
-                period( double start_t, double start_b,
-                        double end_t, double end_b)
-                    : start(start_t, start_b), end(end_t, end_b)
-                {}
 
                 /**
                  * Given a timepoint, returns what fraction of beats has

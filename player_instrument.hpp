@@ -11,7 +11,9 @@
 #include "notation_instrument.hpp"
 #include "player_timing.hpp"
 #include "player_util.hpp"
-#include "player_sample.hpp"
+#include "scalars.hpp"
+#include "units.hpp"
+
 #include <memory>
 #include <cmath> //for sin
 
@@ -31,11 +33,11 @@ struct instrument {
      * @param pitch the current pitch.
      * @return the sample for the current time.
      */
-    virtual sample get_sample(
+    virtual scalars::sample get_sample(
             const timing::period& bounds,
             const timing::time& now,
-            const sample& volume,
-            double pitch) = 0;
+            const scalars::volume& volume,
+            units::tone pitch) = 0;
     virtual ~instrument() {}
 };
 
@@ -47,16 +49,17 @@ struct sinewave : public instrument
     sinewave(const notation::instrument::sinewave& data)
         : data(data), wheel(0) {}
 
-    virtual sample get_sample(
+    virtual scalars::sample get_sample(
             const timing::period& /* bounds */,
             const timing::time& now,
-            const sample& volume,
-            double pitch)
+            const scalars::volume& volume,
+            const units::tone pitch)
     {
-        wheel += now.dt * util::tone_to_freq(pitch);
-        double x = wheel * util::TAU;
+        wheel += units::frequency{pitch} * now.dt;
+        double x = wheel * units::TAU;
         double sx = sin(x);
-        return volume * sx;
+
+        return scalars::sample{sx, sx} * volume;
     }
 
     virtual ~sinewave() {}
@@ -77,14 +80,14 @@ struct sawwave : public instrument
     sawwave(const notation::instrument::sawwave& data)
         : data(data), wheel(0) {}
 
-    virtual sample get_sample(
+    virtual scalars::sample get_sample(
             const timing::period& /* bounds */,
             const timing::time& now,
-            const sample& volume,
-            double pitch)
+            const scalars::volume& volume,
+            const units::tone pitch)
     {
-        double freq = util::tone_to_freq(pitch);
-        wheel += now.dt * freq;
+        auto freq = units::frequency{pitch};
+        wheel += freq * now.dt;
         if (wheel > 1) {
             wheel -= floor(wheel);
         }
@@ -96,7 +99,7 @@ struct sawwave : public instrument
             a = 1 - 4*(wheel - 0.5);
         }
 
-        return volume * a;
+        return scalars::sample{a,a} * volume;
     }
 
     virtual ~sawwave() {}
@@ -118,13 +121,13 @@ struct squarewave : public instrument
     squarewave(const notation::instrument::squarewave& data)
         : data(data), wheel(0) {}
 
-    virtual sample get_sample(
+    virtual scalars::sample get_sample(
             const timing::period& /* bounds */,
             const timing::time& now,
-            const sample& volume,
-            double pitch)
+            const scalars::volume& volume,
+            units::tone pitch)
     {
-        wheel += now.dt * util::tone_to_freq(pitch);
+        wheel += units::frequency{pitch} * now.dt;
         if (wheel > 1) {
             wheel -= floor(wheel);
         }
@@ -135,7 +138,7 @@ struct squarewave : public instrument
         } else {          // top of waveform
             a = 1;
         }
-        return volume * a;
+        return scalars::sample{a,a} * volume;
     }
 
     virtual ~squarewave() {}
