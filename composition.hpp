@@ -9,6 +9,7 @@
  */
 
 #include "math.hpp"
+#include "units.hpp"
 
 #include <boost/assign/std/vector.hpp>
 #include <utility>
@@ -20,12 +21,14 @@ namespace composition {
 /// a chord is a series of tone-offsets relative to a scale.
 /// for instance, 0, 2, 4 (1, 3, 5) is the usual chord, that, when played in a
 /// major scale, gives a major chord.
-typedef std::vector<int> chord;
+typedef std::vector<units::scale_offset> chord;
+typedef std::vector<units::interval> intervals_type;
+typedef std::vector<units::tone> tones_type;
 
-/// tones are semitone offsets from a440.
-typedef std::vector<double> tones_type;
+class scale {
+    std::vector<units::interval> offsets;
 
-struct scale {
+public:
     scale()
         : offsets() {}
 
@@ -38,71 +41,80 @@ struct scale {
         : offsets(std::move(sc.offsets))
     {}
 
-    scale mode(int n) const
-    {
-        using math::mod;
-        n -= 1;
-        size_t size = offsets.size();
-        double first = offsets[n % size];
-        std::vector<double> newscale(size);
-        for (size_t i = 0; i < size; ++i) {
-            newscale[i] = mod((offsets[(n+i)%size]-first + 12), 12);
-        }
-        return scale(std::move(newscale));
-    }
-
     /**
-     * Get a particular tone from a scale.
+     * Get an interval from a scale.
      *
-     * @param basenote - the note that is considered the "base" of the scale.
-     * For instance, if this scale was a major scale, and you wanted C-major,
-     * you set basenote = -9. This is because basenotes are relative to a440.
-     * 
      * @param interval the offset within the scale. If you want the basenote,
      * put in 0. If you want the second note, put in 1. If you want the last
      * note, but one octave down, put in -1.
      *
-     * @return the tone, in halftone offsets from a440
+     * @return the interval that this scale offset represents.
      */
-    double tone(double basenote, int interval)
+    units::interval
+    interval(const units::scale_offset& offset) const
     {
-        size_t n = offsets.size();
-        int octaves = interval / n;
-        interval = interval % n;
+        auto n = offsets.size();
+        int octaves = offset.value / n;
+        int r = offset.value % n;
 
-        if (interval < 0) {
-            interval   += n;
+        if (r < 0) {
+            r += n;
             octaves -= 1;
         }
 
-        basenote += octaves * 12;
-        return offsets[interval] + basenote;
+        return units::interval{octaves, offsets[r]};
     }
 
     /**
-     * Get tones from a chord.
-     *
-     * @param basenote - the note that is considered the "base" of the scale.
-     * For instance, if this scale was a major scale, and you wanted C-major,
-     * you set basenote = -9. This is because basenotes are relative to a440.
+     * Accessor for offsets - provides a periodic view of the scale.
+     * Negative offsets will go from the end of the scale, positive offsets from
+     * the beginning.
+     */
+    units::scale_offset
+    offset(const units::scale_offset& offset) const
+    {
+        int o = offset.value % int(offsets.size());
+        if (o < 0) { o += offsets.size(); }
+        return units::scale_offset{o};
+    }
+
+    /**
+     * Get intervals from a chord.
      *
      * @param ch the chord to convert to notes.
      *
-     * @return the tones, in halfnote offsets from a440.
+     * @return the intervals.
      */
-    tones_type
-    tones(double basenote, const chord& ch)
+    intervals_type
+    intervals(const chord& ch)
     {
-        std::vector<double> t;
+        intervals_type t;
         for (auto i : ch) {
-            t.push_back(tone(basenote, i));
+            t.emplace_back(interval(i));
         }
         return t;
     }
 
-private:
-    std::vector<double> offsets;
+    size_t size() const { return offsets.size(); }
+
 };
+
+/**
+ * Returns the nth mode of the scale sc.
+ */
+scale mode(const scale& sc, const units::scale_offset& n)
+{
+    auto first = sc.interval(n);
+    auto size = sc.size();
+    intervals_type newscale;
+
+    for (unsigned int i = 0; i < size; ++i) {
+        newscale.emplace_back(sc.interval(n + units::scale_offset{i}) - first);
+    }
+
+    return scale{std::move(newscale)};
+}
+
 
 //namespace rhythm {
 ///**
@@ -128,6 +140,14 @@ private:
 
 //} /* end namespace rhythm */
 
+std::vector<units::interval>
+to_intervals(const std::initializer_list<double>& offs) {
+    std::vector<units::interval> sc;
+    for (auto n : offs) {
+        sc.emplace_back(units::interval{n});
+    }
+    return sc;
+}
 
 class resources
 {
@@ -141,35 +161,37 @@ public:
         , chords_()
     {
         typedef std::vector<double> sc_t;
+        using units::scale_offset;
+
         using namespace boost::assign; // for operator+=() on vector
         // diatonics
-        scales_["ionian"]     = scale(sc_t{0,2,4,5,7,9,11});
-        scales_["dorian"]     = scales_["ionian"].mode(2);
-        scales_["phrygian"]   = scales_["ionian"].mode(3);
-        scales_["lydian"]     = scales_["ionian"].mode(4);
-        scales_["mixolydian"] = scales_["ionian"].mode(5);
-        scales_["aeolian"]    = scales_["ionian"].mode(6);
-        scales_["locrian"]    = scales_["ionian"].mode(7);
+        scales_["ionian"]     = scale(to_intervals({0.,2.,4.,5.,7.,9.,11.}));
+        scales_["dorian"]     = mode(scales_["ionian"], scale_offset{2});
+        scales_["phrygian"]   = mode(scales_["ionian"], scale_offset{3});
+        scales_["lydian"]     = mode(scales_["ionian"], scale_offset{4});
+        scales_["mixolydian"] = mode(scales_["ionian"], scale_offset{5});
+        scales_["aeolian"]    = mode(scales_["ionian"], scale_offset{6});
+        scales_["locrian"]    = mode(scales_["ionian"], scale_offset{7});
 
         // variations on the minor
         //                 1 2 3 4 5 6 7
         //                 C D E F G A H
         // ionian:         0 2 4 5 7 9 11
         // aeolian:        0 2 3 5 7 8 10
-        scales_["harmonic minor"]  = scale(sc_t{0,2,3,5,7,8,11});
-        scales_["hungarian minor"] = scale(sc_t{0,2,3,6,7,8,11});
-        scales_["melodic minor"]   = scale(sc_t{0,2,3,5,7,9,11});
-        scales_["double harmonic"] = scale(sc_t{0,1,3,4,7,8,11});
-        scales_["arabic harmonic"] = scale(sc_t{0,0.5,3,4,7,8,11.5});
-        scales_["hungarian gypsy"] = scales_["double harmonic"].mode(4);
+        scales_["harmonic minor"]  = scale(to_intervals({0.,2.,3.,5.,7.,8.,11.}));
+        scales_["hungarian minor"] = scale(to_intervals({0.,2.,3.,6.,7.,8.,11.}));
+        scales_["melodic minor"]   = scale(to_intervals({0.,2.,3.,5.,7.,9.,11.}));
+        scales_["double harmonic"] = scale(to_intervals({0.,1.,3.,4.,7.,8.,11.}));
+        scales_["arabic harmonic"] = scale(to_intervals({0.,0.5,3.,4.,7.,8.,11.5}));
+        scales_["hungarian gypsy"] = mode(scales_["double harmonic"], scale_offset{4});
 
-        scales_["pentatonic minor"] = scale(sc_t{0,3,5,7,10});
-        scales_["pentatonic major"] = scales_["pentatonic minor"].mode(2);
-        scales_["pentatonic egyptian"] = scales_["pentatonic minor"].mode(3);
-        scales_["pentatonic blues major"]=scales_["pentatonic minor"].mode(4);
-        scales_["pentatonic blues minor"]=scales_["pentatonic minor"].mode(5);
+        scales_["pentatonic minor"] = scale(to_intervals({0.,3.,5.,7.,10.}));
+        scales_["pentatonic major"] = mode(scales_["pentatonic minor"], scale_offset{2});
+        scales_["pentatonic egyptian"] = mode(scales_["pentatonic minor"], scale_offset{3});
+        scales_["pentatonic blues major"]= mode(scales_["pentatonic minor"], scale_offset{4});
+        scales_["pentatonic blues minor"]= mode(scales_["pentatonic minor"], scale_offset{5});
 
-        chords_["trichord"] = chord({0,2,4});
+        chords_["trichord"] = chord({scale_offset{0}, scale_offset{2}, scale_offset{4}});
     }
 
     inline

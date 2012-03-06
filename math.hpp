@@ -9,26 +9,40 @@
  */
 
 #include <cmath>
+#include <tuple>
 
 namespace sgr {
     namespace math {
         /**
-         * A % B / B, for doubles. So, it tells us the fraction of B that
-         * remains after division. Faster than mod.
+         * Divides two numbers and returns a tuple of (division result,
+         * remainder).
+         * It holds that divisor * result + remainder = factor.
+         * Signs: the sign of the remainder is the same as the sign of the
+         * divisor. The sign of the result matches factor * divisor.
          */
-        double pmod(double a, double b)
+        template <typename T>
+        auto fmod(T factor, T divisor)
+            -> decltype(std::make_tuple(factor, factor))
         {
-            return (a/b - floor(a/b));
+            using std::make_tuple;
+            auto f = floor(factor / divisor);
+            auto r = std::fmod(factor, divisor);
+            if (f > 0) {
+                return make_tuple(f,r);
+            } else {
+                return make_tuple(f, r + factor);
+            }
         }
 
         /**
-         * A % B, but for doubles.
+         * Returns 
+         * 1  if a > 0
+         * 0  if a = 0
+         * -1 if a < 0
          */
-        double mod(double a, double b)
-        {
-            return (a/b - floor(a/b)) * b;
+        double sign(double a) {
+            return (a > 0)?1 : ((a<0)?-1 : 0);
         }
-
         /**
          * Linear interpolation between a and b,
          * t within 0-1 (not checked).
@@ -41,6 +55,16 @@ namespace sgr {
         T linear_interpolate(const T a, const T b, double t)
         {
             return a * (1-t) + b * t;
+        }
+
+        auto quadratic_roots(double a, double b, double c)
+            -> decltype(std::make_tuple(a, b))
+        {
+            using std::make_tuple;
+            auto q = -0.5 * (b + sign(b)*sqrt(b*b - 4 * a * c));
+            auto x1 = q/a;
+            auto x2 = c/q;
+            return std::make_tuple(x1, x2);
         }
     } /* end namespace math */
 }

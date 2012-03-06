@@ -33,7 +33,7 @@ void audio_callback(void *userdata, Uint8 *stream_in, int len_in);
 struct callback_data {
     sgr::player::player track;
     SDL_AudioSpec fmt;
-    vector<sgr::player::sample> sound;
+    vector<scalars::sample> sound;
 
     callback_data(sgr::player::player track, size_t samples)
         : track(track)
@@ -76,8 +76,9 @@ void audio_callback(void *userdata, Uint8 *stream_in, int len_in) {
 
     callback_data &fmt_data = *static_cast<callback_data*>(userdata);
 
-    double samples_per_sec = fmt_data.fmt.freq;
-    double dt_per_tick = 1/static_cast<double>(samples_per_sec);
+    // cast frequency from int to double
+    units::frequency samples_per_sec{static_cast<double>(fmt_data.fmt.freq)};
+    units::time dt_per_tick{1/samples_per_sec.value};
 
     size_t end = fmt_data.sound.size();
     for (size_t tick = 0; tick < end; ++tick) {
@@ -92,55 +93,28 @@ void audio_callback(void *userdata, Uint8 *stream_in, int len_in) {
 int main( int /* argc */, char ** /* argv */ )
 {
     using namespace sgr::notation;
+    namespace sc = scalars;
     try {
 
     sgr::notation::song song;
 
     sgr::composition::resources stuff;
 
-    song << timing::constant::create(10, 5);
-    song << note(
-                instrument::sinewave::create(),
-                volume::simple::create(0.8,0.8),
-                pitch::constant::create(-9),
-                hit(0,2,1)
-                )
-         << note(
-                instrument::sinewave::create(),
-                volume::simple::create(0.8,0.8),
-                pitch::constant::create(-9),
-                hit(2.5,2,1)
-                )
-         << note(
-                instrument::sinewave::create(),
-                volume::simple::create(0.8,0.8),
-                pitch::constant::create(-9),
-                hit(5,2,1)
-                )
-         << note(
-                instrument::sinewave::create(),
-                volume::simple::create(0.8,0.8),
-                pitch::constant::create(-9),
-                hit(7.5,2,1)
-                );
+    song << timing::linear::create(units::beat{200}, units::bps{1}, units::bps{1});
+    song << timing::constant::create(units::beat{128}, units::bps{1});
 
-/*    song << timing::linear::create(200, 0.5, 50);
-
-    for (size_t i = 0; i < 200; i+=4) {
+    for (size_t i = 0; i < 20; i+=1) {
         song << note(
-                    instrument::sinewave::create(),
-                    volume::fade::create(0,0,0.7,0.7),
-                    pitch::constant::create(-32),
-                    hit(i,2,1)
-                    )
-            << note(
-                    instrument::sinewave::create(),
-                    volume::simple::create(0.4,0.5),
-                    pitch::constant::create(-32),
-                    hit(i+2,2,1)
-                    );
-    }*/
-
+                instrument::sawwave::create(),
+                volume::fade::create(sc::volume{0.5,0.5}, sc::volume{0.7,0.7}),
+                pitch::constant::create(units::tone{-36}),
+                hit(units::beat{double(i*8)}, units::beat{4}, 1));
+        song << note(
+                instrument::sawwave::create(),
+                volume::fade::create(sc::volume{0.7,0.7}, sc::volume{0.0,0.0}),
+                pitch::constant::create(units::tone{-36}),
+                hit(units::beat{double(i*8+4)}, units::beat{4}, 1));
+    }
     callback_data data( sgr::player::player(song), 512);
 
     std::cout << "channels: " << (int) data.fmt.channels << " samples: " <<

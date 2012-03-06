@@ -9,7 +9,9 @@
  */
 
 #include "math.hpp"
+#include "units.hpp"
 #include <memory>
+#include <iostream>
 
 namespace sgr {
 namespace notation {
@@ -17,99 +19,131 @@ namespace timing {
 
 struct timing {
     typedef std::shared_ptr<const timing> pointer_type;
-    timing(double duration) : duration(duration) {}
-    double duration; ///< in beat
-    /// Should return the current bps, in beat since the start of this timing
+    units::beat duration; ///< in beats
+
+    timing(decltype(duration) duration) : duration(duration) {}
+
+    /// Should return the current bps, in bps, since the start of this timing
     /// sequence
-    virtual double bps(double beat) const = 0;
+    virtual units::bps bps(units::beat beat) const = 0;
+
     /**
      * Given a time point (with 0 being the beginning of this timing period),
-     * calculates the number of beat that have passed since the beginning of
+     * calculates the number of beats that have passed since the beginning of
      * this time period.
      */
-    virtual double time_to_beat(double time) const = 0;
+    virtual units::beat time_to_beat(units::time time) const = 0;
+
     /**
      * Given a beat point, calculates the time that has passed in order to reach
      * that beat. Zero coresponds to beginning of this time period, in both
      * ways.
      */
-    virtual double beat_to_time(double beat) const = 0;
+    virtual units::time beat_to_time(units::beat beat) const = 0;
+
     /**
      * Returns the full time of the timing sequence.
      */
-    virtual double full_time() const = 0;
+    virtual units::time full_time() const = 0;
+
+    /**
+     * Returns the full beat length of the timing sequence.
+     */
+    units::beat full_beats() const {
+        return duration;
+    }
+
     /// virtual dtor
     virtual ~timing() {}
 };
 
 /** Constant bpm timing.  */
-struct constant : public timing {
+class constant : public timing {
+    units::bps bps_;
+    units::time full_time_;
+
+    constant(units::beat duration, units::bps bps)
+        : timing(duration), bps_(bps), full_time_(duration / bps) {}
+
+public:
     typedef std::shared_ptr<const constant> pointer_type;
 
     /**
      * Creates a new even timing object and returns a shared pointer
      * to it.
-     * @param bpt the beat per minute throughout the passage.
+     * @param duration the duration of the passage, in beats per minute.
+     * @param bps the beat per minute throughout the passage.
      */
     static pointer_type
-    create(double duration, double bps)
+    create(units::beat duration, units::bps bps)
     {
         return pointer_type(new constant(duration, bps));
     }
 
-    double bps(double /* beat */) const { return bps_; }
-    double time_to_beat(double time) const
+    units::bps bps(units::beat /* beat */) const { return bps_; }
+    units::beat time_to_beat(units::time time) const
     {
-        return bps_ * time;
+        return units::beat{bps_.value * time.value};
     }
-    double beat_to_time(double beat) const
+    units::time beat_to_time(units::beat beat) const
     {
-        return beat / bps_;
+        return units::time{beat.value / bps_.value};
     }
-    double full_time() const { return full_time_; }
+    units::time full_time() const { return full_time_; }
 
     virtual ~constant() {}
-
-    private:
-    constant(double duration, double bps)
-        : timing(duration), bps_(bps), full_time_(duration / bps) {}
-    double bps_;
-    double full_time_;
 };
 
 /** Linear speedup/slowdown */
-struct linear : public timing {
+class linear : public timing {
     typedef std::shared_ptr<const linear> pointer_type;
 
+    units::bps start_bps;
+    units::bps end_bps;
+    units::time full_time_;
+
+    linear(units::beat duration, units::bps sbps, units::bps ebps)
+        : timing{duration}
+        , start_bps{sbps}
+        , end_bps{ebps}
+        , full_time_{(duration / (start_bps + end_bps)) * 2}
+    {}
+
+public:
     static pointer_type
-    create(double duration, double start_bps, double end_bps)
+    create(units::beat duration, units::bps start_bps, units::bps end_bps)
     {
         return pointer_type(new linear(duration, start_bps, end_bps));
     }
 
-    double bps(double beat) const
+    /**
+     * Returns the current bps.
+     */
+    units::bps bps(units::beat beat) const
     {
-        double path = beat_to_time(beat)/full_time();
+        auto path = beat_to_time(beat)/full_time();
         return math::linear_interpolate(start_bps, end_bps, path);
     }
+
     /**
-     * The number of beat passed is the area of the trapese in the picture.
+     * The number of beats passed is the area of the trapese in the picture.
      * <pre>
-     *     a(1-t) + bt
+     *     c = a(1-t) + bt
      *    /|
      * a / |
      *  |__|
      *  0  t
      * </pre>
-     * 
      */
-    double time_to_beat(double time) const
+    units::beat time_to_beat(units::time time) const
     {
-        double T = full_time();
-        double frac = time/T;
-        double b = math::linear_interpolate(start_bps, end_bps, frac);
-        return (start_bps + b)/2 * time;
+        auto T = full_time();
+        auto frac = time/T;
+        auto c = math::linear_interpolate(start_bps, end_bps, frac);
+        auto r = (start_bps + c)/2 * time;
+        return r;
     }
+
     /**
      * Convert beat to time.
      *
@@ -121,25 +155,32 @@ struct linear : public timing {
      * t = (aT - sqrt(2dT(b-a)+a^2 T^2))/(a-b)
      *
      */
-    double beat_to_time(double beat) const
+    units::time beat_to_time(units::beat beat) const
     {
-        double a = start_bps;
-        double b = end_bps;
-        double T = full_time();
-        double d = beat;
-        double aa = a*a;
-        double TT = T*T;
-        return (a*T - sqrt(2*d*T*(b-a) + aa * TT))/(a-b);
+        auto s = start_bps.value;
+        auto e = end_bps.value;
+        auto T = full_time().value;
+        auto b = beat.value;
+
+        auto alpha = (e-s)/T;
+        auto beta  = s*2;
+        auto gamma = b*(-2);
+
+        double t1, t2;
+        std::tie(t1, t2) = math::quadratic_roots(alpha, beta, gamma);
+
+        return units::time{(t1 >= 0)?t1 : t2};
     }
+
     /**
      * Returns the full time of the period.
      * <pre>
-     * B ... length of period in beat
+     * B ... length of period in beats
      * a ... start bps
      * b ... end bps
      * T ... full time
      *
-     * In time T we must reach B full beat.
+     * In time T we must reach B full beats.
      * That means that the area of the trapese
      *     b
      *    /|
@@ -153,20 +194,10 @@ struct linear : public timing {
      *   T = 2 B / (a + b)
      * </pre>
      */
-    double full_time() const { return full_time_; }
+    units::time full_time() const { return full_time_; }
 
     virtual ~linear() {}
-    private:
-    linear(double duration, double sbps, double ebps)
-        : timing(duration)
-        , start_bps(sbps)
-        , end_bps(ebps)
-        , full_time_(2 * duration / (start_bps + end_bps))
-    {}
 
-    double start_bps;
-    double end_bps;
-    double full_time_;
 };
 
 } /* end namespace timing */

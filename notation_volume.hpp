@@ -8,6 +8,8 @@
  * @since 2012-01-31
  */
 
+#include "scalars.hpp"
+
 #include <memory>
 
 namespace sgr {
@@ -42,12 +44,13 @@ struct volume {
  * Simple volume volume - does nothing but provides constant volume throughout
  * the tone.
  */
-struct simple : public volume {
+class simple : public volume {
+public:
+    scalars::volume volume;
+
 private:
-    simple(double vol_left, double vol_right)
-        : left(vol_left)
-        , right(vol_right)
-    {}
+    simple(decltype(volume) volume) : volume{volume} {}
+
 public:
     /**
      * This is how you create these objects - since they must always be stored
@@ -57,15 +60,11 @@ public:
      * @return a std::shared_ptr to the created object. The object is immutable.
      */
     static std::shared_ptr<const simple>
-    create(double vol_left = 0.7, double vol_right=0.7)
+    create(scalars::volume volume_)
     {
-        return std::shared_ptr<const simple>(new simple(vol_left, vol_right));
+        return std::shared_ptr<const simple>(new simple(volume_));
     }
 
-    /** left channel volume */
-    const double left;
-    /** right channel volume */
-    const double right;
 
     /// visitor interface implementation.
     virtual void accept(volume_visitor& v) const { v.visit(*this); }
@@ -78,15 +77,17 @@ public:
  * linearly.
  */
 struct fade : public volume {
+    scalars::volume start_volume;
+    scalars::volume end_volume;
+
 private:
-    fade(double start_vol_left, double start_vol_right,
-            double end_vol_left, double end_vol_right)
-        : start_left(start_vol_left)
-        , start_right(start_vol_right)
-        , end_left(end_vol_left)
-        , end_right(end_vol_right)
+    fade(scalars::volume start_volume, scalars::volume end_volume)
+        : start_volume(start_volume)
+        , end_volume(end_volume)
     {}
+
 public:
+
     /**
      * This is how you create these objects - since they must always be stored
      * in a shared pointer.
@@ -95,21 +96,11 @@ public:
      * @return a std::shared_ptr to the created object. The object is immutable.
      */
     static std::shared_ptr<const fade>
-    create(double start_vol_left = 0.7, double start_vol_right=0.7, double
-            end_vol_left = 0.7, double end_vol_right = 0.7)
+    create(scalars::volume start_volume, scalars::volume end_volume)
     {
-        return std::shared_ptr<const fade>(new fade(
-                    start_vol_left, start_vol_right, end_vol_left, end_vol_right));
+        return std::shared_ptr<const fade>(new fade(start_volume, end_volume));
     }
 
-    /** left channel volume at start */
-    const double start_left;
-    /** right channel volume at start */
-    const double start_right;
-    /** left channel volume at end */
-    const double end_left;
-    /** right channel volume at end */
-    const double end_right;
 
     /// visitor interface implementation.
     virtual void accept(volume_visitor& v) const { v.visit(*this); }

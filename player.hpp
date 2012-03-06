@@ -12,7 +12,7 @@
 #include "notation.hpp"
 #include "player_instrument.hpp"
 #include "player_timing.hpp"
-#include "player_sample.hpp"
+#include "scalars.hpp"
 #include "player_pitch.hpp"
 #include "player_volume.hpp"
 
@@ -25,6 +25,7 @@
 #include <cassert>
 
 #include <iostream> //for cerr
+#include <sstream>
 
 namespace sgr {
 namespace player {
@@ -32,18 +33,27 @@ namespace player {
 struct instruction {
     typedef std::shared_ptr<const instruction> pointer_type;
 
-    instruction(const notation::note& n, double start_t, double end_t)
-        : pitch(pitch::factory(*n.pitch))
-        , instrument(instrument::factory(*n.instrument))
-        , volume(volume::factory(*n.volume))
-        , bounds(timing::time(start_t, n.duration.start),
-                 timing::time(end_t, n.duration.start + n.duration.duration))
-    {}
-
     pitch::pitch::pointer_type           pitch;
     instrument::instrument::pointer_type instrument;
     volume::volume::pointer_type         volume;
     timing::period                       bounds;
+
+    instruction(const notation::note& n, units::time start_t, units::time end_t)
+        : pitch{pitch::factory(*n.pitch)}
+        , instrument{instrument::factory(*n.instrument)}
+        , volume{volume::factory(*n.volume)}
+        , bounds{timing::time(start_t, n.duration.start),
+                 timing::time(end_t, n.duration.start + n.duration.duration)}
+    {}
+
+    std::string str() {
+        std::stringstream ss;
+        ss << "Instrument: " << instrument->str() << std::endl;
+        ss << "Pitch: " << pitch->str() << std::endl;
+        ss << "Volume: " << volume->str() << std::endl;
+        ss << "Period: " << bounds.str() << std::endl;
+        return ss.str();
+    }
 };
 
 struct tempo {
@@ -56,16 +66,20 @@ struct tempo {
 
     public:
 
-    tempo() : timings(), now(0,0,0,0), global(0,0,0,0) {}
+    tempo()
+        : timings()
+        , now(units::time{0},units::beat{0},units::time{0},units::beat{0})
+        , global(units::time{0},units::beat{0},units::time{0},units::beat{0}) {}
 
     void add_timing(const notation::timing::timing::pointer_type timing)
     {
         timings.push_back(timing);
     }
 
-    void advance(double dt) throw (err::end_of_song)
+    void advance(units::time dt) throw (err::end_of_song)
     {
-        assert((dt >= 0) && "must be greater than zero!");
+        using units::time;
+        assert((dt >= time{0}) && "must be greater than zero!");
         timing::time old(now);
 
         global.t += dt;
@@ -79,8 +93,8 @@ struct tempo {
             /* switch the timing sequence */
 
             /* remember how much time and beat remained */
-            double rest_of_t = t->full_time() - old.t;
-            double rest_of_b = t->duration - old.beat;
+            auto rest_of_t = t->full_time() - old.t;
+            auto rest_of_b = t->duration - old.beat;
 
             now.t = dt - rest_of_t; /* current time is dt - remaining */
             old.beat = -rest_of_b; /* dbeat = now.beat - old.beat */
@@ -98,17 +112,19 @@ struct tempo {
 
         global.beat += now.dbeat;
         global.dbeat = now.dbeat;
+//        std::cout << "dt: " << dt.value << " dbeat: " << now.dbeat.value << "\n";
     }
 
     /** Returns the time of a specified beat.
      * Relative to beginning of song.
      * DO NOT USE for beat that have already passed!
      */
-    double beat_to_time(double beat) throw (sgr::err::invalid_beat)
+    units::time beat_to_time(units::beat beat) throw (sgr::err::invalid_beat)
     {
         using namespace sgr::err;
+
         if (beat < global.beat) {
-            throw invalid_beat() << beat_val(beat)
+            throw invalid_beat() << beat_val(beat.value)
                 << reason("Beat in the past.");
         }
         auto t = global.t;
@@ -122,7 +138,7 @@ struct tempo {
                 beat -= l->duration;
             }
         }
-        throw invalid_beat() << beat_val(beat) <<
+        throw invalid_beat() << beat_val(beat.value) <<
             reason("Beat past end of song.");
     }
 
@@ -160,7 +176,7 @@ class player
     piano_roll roll;
     std::list<instruction> active;
 
-    sample sound_;
+    scalars::sample sound_;
 public:
     player(notation::song song)
         : now()
@@ -172,8 +188,8 @@ public:
             now.add_timing(timing);
         }
         for (auto instr : song.notes()) {
-            double start_t = now.beat_to_time(instr.duration.start);
-            double end_t   = now.beat_to_time(instr.duration.start + instr.duration.duration);
+            auto start_t = now.beat_to_time(instr.duration.start);
+            auto end_t   = now.beat_to_time(instr.duration.start + instr.duration.duration);
             roll.push(instruction(instr, start_t , end_t));
         }
     }
@@ -182,10 +198,10 @@ public:
      * Advances the composition by dt seconds.
      * @param dt the time to advance, in seconds. Must be >= 0.
      */
-    void advance(double dt)
+    void advance(units::time dt)
     {
         using std::max;
-        assert((dt >= 0) && "Not meant to go backwards!");
+        assert((dt >= units::time{0}) && "Not meant to go backwards!");
 
         now.advance(dt);
         auto t = now.get();
@@ -194,6 +210,8 @@ public:
         if (!roll.empty()) {
             auto top = roll.top();
             if (top.bounds.start.beat <= t.beat) {
+//                std::cout << "Beat: " << t.beat.value << ". Adding " <<
+//                    top.str();
                 active.push_back(top);
                 roll.pop();
             }
@@ -204,6 +222,8 @@ public:
         auto e = active.end();
         while (p != e) {
             if (p->bounds.end.beat < t.beat) {
+//                std::cout << "Beat: " << t.beat.value << ". removing " <<
+//                    p->str();
                 p = active.erase(p);
             } else {
                 ++p;
@@ -212,16 +232,16 @@ public:
 
         // compute sound
         double normalize = 0;
-        sample s(0, 0);
+        scalars::sample s{0, 0};
         for (auto p : active) {
+//            std::cout << p.str();
             auto vol = p.volume->get_volume(p.bounds, t);
             auto pitch = p.pitch->get_pitch(p.bounds, t);
             s += p.instrument->get_sample(p.bounds, t, vol, pitch);
             normalize += max(vol.right, vol.left);
         }
         normalize = max(normalize, 1.0);
-        s.left /= normalize;
-        s.right /= normalize;
+        s *= scalars::volume{1/normalize, 1/normalize};
         sound_ = s;
     }
 
@@ -229,7 +249,7 @@ public:
      * Extract the current soundsample.
      * @return the current sound amplitude.
      */
-    sample sound()
+    scalars::sample sound()
     {
         return sound_;
     }

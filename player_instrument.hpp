@@ -11,7 +11,9 @@
 #include "notation_instrument.hpp"
 #include "player_timing.hpp"
 #include "player_util.hpp"
-#include "player_sample.hpp"
+#include "scalars.hpp"
+#include "units.hpp"
+
 #include <memory>
 #include <cmath> //for sin
 
@@ -31,39 +33,47 @@ struct instrument {
      * @param pitch the current pitch.
      * @return the sample for the current time.
      */
-    virtual sample get_sample(
+    virtual scalars::sample get_sample(
             const timing::period& bounds,
             const timing::time& now,
-            const sample& volume,
-            double pitch) = 0;
+            const scalars::volume& volume,
+            units::tone pitch) = 0;
     virtual ~instrument() {}
+
+    virtual std::string str() = 0;
 };
 
 /**
  * Plays a sine.
  */
-struct sinewave : public instrument
+class sinewave : public instrument
 {
+    notation::instrument::sinewave data;
+    double wheel;
+public:
     sinewave(const notation::instrument::sinewave& data)
         : data(data), wheel(0) {}
 
-    virtual sample get_sample(
+    virtual scalars::sample get_sample(
             const timing::period& /* bounds */,
             const timing::time& now,
-            const sample& volume,
-            double pitch)
+            const scalars::volume& volume,
+            const units::tone pitch)
     {
-        wheel += now.dt * util::tone_to_freq(pitch);
-        double x = wheel * util::TAU;
+        wheel += units::frequency{pitch} * now.dt;
+        double x = wheel * units::TAU;
         double sx = sin(x);
-        return volume * sx;
+
+        return scalars::sample{sx, sx} * volume;
+    }
+
+    std::string str() {
+        std::stringstream ss;
+        ss << "SineWave";
+        return ss.str();
     }
 
     virtual ~sinewave() {}
-
-    private:
-    notation::instrument::sinewave data;
-    double wheel;
 };
 
 /**
@@ -72,19 +82,23 @@ struct sinewave : public instrument
  * /\/\/\/\/\/\/\/\/\/\/\/
  * </pre>
  */
-struct sawwave : public instrument
+class sawwave : public instrument
 {
+    notation::instrument::sawwave data;
+    double wheel;
+
+public:
     sawwave(const notation::instrument::sawwave& data)
         : data(data), wheel(0) {}
 
-    virtual sample get_sample(
+    virtual scalars::sample get_sample(
             const timing::period& /* bounds */,
             const timing::time& now,
-            const sample& volume,
-            double pitch)
+            const scalars::volume& volume,
+            const units::tone pitch)
     {
-        double freq = util::tone_to_freq(pitch);
-        wheel += now.dt * freq;
+        auto freq = units::frequency{pitch};
+        wheel += freq * now.dt;
         if (wheel > 1) {
             wheel -= floor(wheel);
         }
@@ -96,14 +110,17 @@ struct sawwave : public instrument
             a = 1 - 4*(wheel - 0.5);
         }
 
-        return volume * a;
+        return scalars::sample{a,a} * volume;
+    }
+
+    std::string str() {
+        std::stringstream ss;
+        ss << "SawWave";
+        return ss.str();
     }
 
     virtual ~sawwave() {}
 
-    private:
-    notation::instrument::sawwave data;
-    double wheel;
 };
 
 /**
@@ -113,18 +130,22 @@ struct sawwave : public instrument
  *    |___|   |___|   |___
  * </pre>
  */
-struct squarewave : public instrument
+class squarewave : public instrument
 {
+    notation::instrument::squarewave data;
+    double wheel;
+
+public:
     squarewave(const notation::instrument::squarewave& data)
         : data(data), wheel(0) {}
 
-    virtual sample get_sample(
+    virtual scalars::sample get_sample(
             const timing::period& /* bounds */,
             const timing::time& now,
-            const sample& volume,
-            double pitch)
+            const scalars::volume& volume,
+            units::tone pitch)
     {
-        wheel += now.dt * util::tone_to_freq(pitch);
+        wheel += units::frequency{pitch} * now.dt;
         if (wheel > 1) {
             wheel -= floor(wheel);
         }
@@ -135,14 +156,17 @@ struct squarewave : public instrument
         } else {          // top of waveform
             a = 1;
         }
-        return volume * a;
+        return scalars::sample{a,a} * volume;
+    }
+
+    std::string str() {
+        std::stringstream ss;
+        ss << "SquareWave";
+        return ss.str();
     }
 
     virtual ~squarewave() {}
 
-    private:
-    notation::instrument::squarewave data;
-    double wheel;
 };
 
 namespace impl_detail {

@@ -10,6 +10,8 @@
 
 #include <memory>
 
+#include "units.hpp"
+
 namespace sgr {
 namespace notation {
 namespace pitch {
@@ -43,12 +45,15 @@ struct pitch {
 struct constant : public pitch {
     typedef std::shared_ptr<const constant> pointer_type;
 
+    /// Pitch, in halftones from a440.
+    units::tone pitch;
+
 
     /// create new pitch envelopes through this function.
     /// @param pitch the pitch of the note, in halftone offsets from a440.
     /// @return a new constant pitch object.
     static pointer_type
-    create(double pitch) { return pointer_type(new constant(pitch)); }
+    create(decltype(pitch) pitch) { return pointer_type(new constant(pitch)); }
 
     /// visitor implementation
     void accept(pitch_visitor& vis) const { vis.visit(*this); }
@@ -56,11 +61,9 @@ struct constant : public pitch {
     /// Virtual destructor.
     virtual ~constant() {}
 
-    /// Pitch, in halftones from a440.
-    double pitch;
 
     private:
-    constant(double pitch) : pitch(pitch) {}
+    constant(decltype(pitch) pitch) : pitch(pitch) {}
 };
 
 /**
@@ -68,12 +71,14 @@ struct constant : public pitch {
  */
 struct linear_slide : public pitch {
     typedef std::shared_ptr<const linear_slide> pointer_type;
+    units::tone start_pitch;
+    units::tone end_pitch;
 
     /// create new pitch envelopes through this function.
     /// @param pitch the pitch of the note, in halftone offsets from a440.
     /// @return a new linear_slide pitch object.
     static pointer_type
-    create(double start_pitch, double end_pitch) {
+    create(decltype(start_pitch) start_pitch, decltype(end_pitch) end_pitch) {
         return pointer_type(new linear_slide(start_pitch, end_pitch));
     }
 
@@ -83,12 +88,10 @@ struct linear_slide : public pitch {
     /// Virtual destructor.
     virtual ~linear_slide() {}
 
-    double start_pitch;
-    double end_pitch;
 
     private:
-    linear_slide(double start_pitch, double end_pitch)
-        : start_pitch(start_pitch), end_pitch(end_pitch)
+    linear_slide(decltype(start_pitch) start_pitch, decltype(end_pitch) end_pitch)
+        : start_pitch{start_pitch}, end_pitch{end_pitch}
     {}
 };
 

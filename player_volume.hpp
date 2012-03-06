@@ -8,7 +8,7 @@
  * @since 2012-02-05
  */
 
-#include "player_sample.hpp"
+#include "scalars.hpp"
 #include "player_timing.hpp"
 #include "notation_volume.hpp"
 #include "math.hpp"
@@ -19,10 +19,13 @@ namespace sgr {
 namespace player {
 namespace volume {
 
+    static const units::time GLOBAL_FALLOFF = units::time{0.02};
+
     /** volume interface */
     struct volume {
         typedef std::shared_ptr<volume> pointer_type;
-        constexpr static double GLOBAL_FALLOFF = 0.02;
+
+
         /** Gets the decrackle volume. This should be used by all
          * implementations of get_volume to avoid crackling on tone boundaries.
          * @return 1 normally, but raises and lowers volume linearly between 1
@@ -35,14 +38,17 @@ namespace volume {
         {
             using std::min;
             // decrackle
-            double start = bounds.start.t;
-            double end   = bounds.end.t;
-            double t     = now.t;
+            auto start = bounds.start.t;
+            auto end   = bounds.end.t;
+            auto t     = now.t;
             return min(min(t - start, end - t) / GLOBAL_FALLOFF, 1.0);
         }
-        virtual sample get_volume(
+
+        virtual scalars::volume get_volume(
                 const timing::period& bounds,
                 const timing::time& now) = 0;
+
+        virtual std::string str() = 0;
 
         virtual ~volume() {}
     };
@@ -52,16 +58,23 @@ namespace volume {
         simple( const notation::volume::simple& data )
             : data(data) {}
 
-        virtual sample get_volume(
+        virtual scalars::volume get_volume(
                 const timing::period& bounds,
                 const timing::time& now
                 )
         {
+            using scalars::volume;
             double decrackle = decrackle_volume(bounds, now);
-            return sample(data.left * decrackle, data.right * decrackle);
+            return data.volume * volume{decrackle,decrackle};
         }
 
         virtual ~simple() {}
+
+        std::string str() {
+            std::stringstream ss;
+            ss << "Simple volume at " << data.volume.str();
+            return ss.str();
+        }
 
         notation::volume::simple data;
     };
@@ -70,18 +83,23 @@ namespace volume {
     {
         fade( const notation::volume::fade& data ) : data(data) {}
 
-        virtual sample get_volume(
+        virtual scalars::volume get_volume(
                 const timing::period& bounds,
                 const timing::time& now
                 )
         {
+            using scalars::volume;
             double decrackle = decrackle_volume(bounds, now);
             double path = bounds.beat_fraction(now);
-            double left = math::linear_interpolate(
-                    data.start_left, data.end_left, path);
-            double right = math::linear_interpolate(
-                    data.start_right, data.end_right, path);
-            return sample(left * decrackle, right * decrackle);
+            volume v = math::linear_interpolate(data.start_volume, data.end_volume, path);
+            return v * volume{decrackle,decrackle};
+        }
+
+        std::string str() {
+            std::stringstream ss;
+            ss << "Fading volume from " << data.start_volume.str() << " to " <<
+                data.end_volume.str();
+            return ss.str();
         }
 
         virtual ~fade() {}
