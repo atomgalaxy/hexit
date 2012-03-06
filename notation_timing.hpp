@@ -11,6 +11,7 @@
 #include "math.hpp"
 #include "units.hpp"
 #include <memory>
+#include <iostream>
 
 namespace sgr {
 namespace notation {
@@ -105,7 +106,7 @@ class linear : public timing {
         : timing{duration}
         , start_bps{sbps}
         , end_bps{ebps}
-        , full_time_{2 * duration.value / (start_bps.value + end_bps.value)}
+        , full_time_{(duration / (start_bps + end_bps)) * 2}
     {}
 
 public:
@@ -115,29 +116,32 @@ public:
         return pointer_type(new linear(duration, start_bps, end_bps));
     }
 
+    /**
+     * Returns the current bps.
+     */
     units::bps bps(units::beat beat) const
     {
         auto path = beat_to_time(beat)/full_time();
-        return units::bps{math::linear_interpolate(start_bps, end_bps, path)};
+        return math::linear_interpolate(start_bps, end_bps, path);
     }
 
     /**
-     * The number of beat passed is the area of the trapese in the picture.
+     * The number of beats passed is the area of the trapese in the picture.
      * <pre>
-     *     a(1-t) + bt
+     *     c = a(1-t) + bt
      *    /|
      * a / |
      *  |__|
      *  0  t
      * </pre>
-     * 
      */
     units::beat time_to_beat(units::time time) const
     {
         auto T = full_time();
         auto frac = time/T;
-        auto b = math::linear_interpolate(start_bps, end_bps, frac);
-        return (start_bps + b)/2 * time;
+        auto c = math::linear_interpolate(start_bps, end_bps, frac);
+        auto r = (start_bps + c)/2 * time;
+        return r;
     }
 
     /**
@@ -153,25 +157,30 @@ public:
      */
     units::time beat_to_time(units::beat beat) const
     {
-        /* units are all over the place */
-        auto a = start_bps.value;
-        auto b = end_bps.value;
+        auto s = start_bps.value;
+        auto e = end_bps.value;
         auto T = full_time().value;
-        auto d = beat.value;
-        auto aa = a*a;
-        auto TT = T*T;
-        return units::time{(a*T - sqrt(d*T*(b-a)*2 + aa * TT))/(a-b)};
+        auto b = beat.value;
+
+        auto alpha = (e-s)/T;
+        auto beta  = s*2;
+        auto gamma = b*(-2);
+
+        double t1, t2;
+        std::tie(t1, t2) = math::quadratic_roots(alpha, beta, gamma);
+
+        return units::time{(t1 >= 0)?t1 : t2};
     }
 
     /**
      * Returns the full time of the period.
      * <pre>
-     * B ... length of period in beat
+     * B ... length of period in beats
      * a ... start bps
      * b ... end bps
      * T ... full time
      *
-     * In time T we must reach B full beat.
+     * In time T we must reach B full beats.
      * That means that the area of the trapese
      *     b
      *    /|

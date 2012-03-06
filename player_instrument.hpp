@@ -39,13 +39,18 @@ struct instrument {
             const scalars::volume& volume,
             units::tone pitch) = 0;
     virtual ~instrument() {}
+
+    virtual std::string str() = 0;
 };
 
 /**
  * Plays a sine.
  */
-struct sinewave : public instrument
+class sinewave : public instrument
 {
+    notation::instrument::sinewave data;
+    double wheel;
+public:
     sinewave(const notation::instrument::sinewave& data)
         : data(data), wheel(0) {}
 
@@ -62,11 +67,13 @@ struct sinewave : public instrument
         return scalars::sample{sx, sx} * volume;
     }
 
-    virtual ~sinewave() {}
+    std::string str() {
+        std::stringstream ss;
+        ss << "SineWave";
+        return ss.str();
+    }
 
-    private:
-    notation::instrument::sinewave data;
-    double wheel;
+    virtual ~sinewave() {}
 };
 
 /**
@@ -75,8 +82,12 @@ struct sinewave : public instrument
  * /\/\/\/\/\/\/\/\/\/\/\/
  * </pre>
  */
-struct sawwave : public instrument
+class sawwave : public instrument
 {
+    notation::instrument::sawwave data;
+    double wheel;
+
+public:
     sawwave(const notation::instrument::sawwave& data)
         : data(data), wheel(0) {}
 
@@ -102,11 +113,14 @@ struct sawwave : public instrument
         return scalars::sample{a,a} * volume;
     }
 
+    std::string str() {
+        std::stringstream ss;
+        ss << "SawWave";
+        return ss.str();
+    }
+
     virtual ~sawwave() {}
 
-    private:
-    notation::instrument::sawwave data;
-    double wheel;
 };
 
 /**
@@ -116,8 +130,12 @@ struct sawwave : public instrument
  *    |___|   |___|   |___
  * </pre>
  */
-struct squarewave : public instrument
+class squarewave : public instrument
 {
+    notation::instrument::squarewave data;
+    double wheel;
+
+public:
     squarewave(const notation::instrument::squarewave& data)
         : data(data), wheel(0) {}
 
@@ -141,11 +159,14 @@ struct squarewave : public instrument
         return scalars::sample{a,a} * volume;
     }
 
+    std::string str() {
+        std::stringstream ss;
+        ss << "SquareWave";
+        return ss.str();
+    }
+
     virtual ~squarewave() {}
 
-    private:
-    notation::instrument::squarewave data;
-    double wheel;
 };
 
 namespace impl_detail {

@@ -48,6 +48,8 @@ namespace volume {
                 const timing::period& bounds,
                 const timing::time& now) = 0;
 
+        virtual std::string str() = 0;
+
         virtual ~volume() {}
     };
 
@@ -68,6 +70,12 @@ namespace volume {
 
         virtual ~simple() {}
 
+        std::string str() {
+            std::stringstream ss;
+            ss << "Simple volume at " << data.volume.str();
+            return ss.str();
+        }
+
         notation::volume::simple data;
     };
 
@@ -85,6 +93,13 @@ namespace volume {
             double path = bounds.beat_fraction(now);
             volume v = math::linear_interpolate(data.start_volume, data.end_volume, path);
             return v * volume{decrackle,decrackle};
+        }
+
+        std::string str() {
+            std::stringstream ss;
+            ss << "Fading volume from " << data.start_volume.str() << " to " <<
+                data.end_volume.str();
+            return ss.str();
         }
 
         virtual ~fade() {}

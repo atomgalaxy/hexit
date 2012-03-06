@@ -7,6 +7,8 @@
  * @author Gašper Ažman, gasper.azman@gmail.com
  * @since 2012-02-05
  */
+#include <sstream>
+#include <string>
 
 namespace sgr {
 namespace scalars {
@@ -58,6 +60,22 @@ namespace scalars {
             left *= o;
             right *= o;
             return *this;
+        }
+
+        volume operator/(const double o) const {
+            return volume{left / o, right / o, full};
+        }
+
+        volume& operator/=(const double o) {
+            left /= o;
+            right /= o;
+            return *this;
+        }
+
+        std::string str() {
+            std::stringstream ss;
+            ss << "{" << left << ", " << right << "}/" << full;
+            return ss.str();
         }
     };
 

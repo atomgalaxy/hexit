@@ -8,6 +8,9 @@
  * @since 2012-02-09
  */
 
+#include <sstream>
+#include <string>
+
 namespace sgr {
 namespace units {
 
@@ -64,13 +67,39 @@ struct interval {
 /** Offset from A440, in semitones. */
 struct tone {
     double value;
+
     explicit constexpr tone(decltype(value) value) : value{value} {}
+
     constexpr tone operator+(const interval& o) const {
         return tone{value + o.value};
     }
+
     tone& operator+=(const interval& o) {
         value += o.value;
         return *this;
+    }
+
+    std::string str() {
+        std::stringstream ss;
+        ss << value << "{";
+        int to_name = int(round(value))%12;
+        if (to_name < 0) { to_name += 12; }
+        switch (to_name) {
+            case 0: ss << "A"; break;
+            case 1: ss << "A# (B)"; break;
+            case 2: ss << "H"; break;
+            case 3: ss << "C"; break;
+            case 4: ss << "C#"; break;
+            case 5: ss << "D"; break;
+            case 6: ss << "D#"; break;
+            case 7: ss << "E"; break;
+            case 8: ss << "F"; break;
+            case 9: ss << "F#"; break;
+            case 10: ss << "G"; break;
+            case 11: ss << "G#"; break;
+        }
+        ss << "}";
+        return ss.str();
     }
 };
 
@@ -167,7 +196,7 @@ struct bps {
         return bps{value * sc};
     }
     bps operator/(const scalar sc) const {
-        return bps{value * sc};
+        return bps{value / sc};
     }
 
     bps& operator*=(const scalar& sc) {

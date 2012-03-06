@@ -25,12 +25,18 @@
 #include <cassert>
 
 #include <iostream> //for cerr
+#include <sstream>
 
 namespace sgr {
 namespace player {
 
 struct instruction {
     typedef std::shared_ptr<const instruction> pointer_type;
+
+    pitch::pitch::pointer_type           pitch;
+    instrument::instrument::pointer_type instrument;
+    volume::volume::pointer_type         volume;
+    timing::period                       bounds;
 
     instruction(const notation::note& n, units::time start_t, units::time end_t)
         : pitch{pitch::factory(*n.pitch)}
@@ -40,10 +46,14 @@ struct instruction {
                  timing::time(end_t, n.duration.start + n.duration.duration)}
     {}
 
-    pitch::pitch::pointer_type           pitch;
-    instrument::instrument::pointer_type instrument;
-    volume::volume::pointer_type         volume;
-    timing::period                       bounds;
+    std::string str() {
+        std::stringstream ss;
+        ss << "Instrument: " << instrument->str() << std::endl;
+        ss << "Pitch: " << pitch->str() << std::endl;
+        ss << "Volume: " << volume->str() << std::endl;
+        ss << "Period: " << bounds.str() << std::endl;
+        return ss.str();
+    }
 };
 
 struct tempo {
@@ -102,6 +112,7 @@ struct tempo {
 
         global.beat += now.dbeat;
         global.dbeat = now.dbeat;
+//        std::cout << "dt: " << dt.value << " dbeat: " << now.dbeat.value << "\n";
     }
 
     /** Returns the time of a specified beat.
@@ -199,6 +210,8 @@ public:
         if (!roll.empty()) {
             auto top = roll.top();
             if (top.bounds.start.beat <= t.beat) {
+//                std::cout << "Beat: " << t.beat.value << ". Adding " <<
+//                    top.str();
                 active.push_back(top);
                 roll.pop();
             }
@@ -209,6 +222,8 @@ public:
         auto e = active.end();
         while (p != e) {
             if (p->bounds.end.beat < t.beat) {
+//                std::cout << "Beat: " << t.beat.value << ". removing " <<
+//                    p->str();
                 p = active.erase(p);
             } else {
                 ++p;
@@ -219,14 +234,14 @@ public:
         double normalize = 0;
         scalars::sample s{0, 0};
         for (auto p : active) {
+//            std::cout << p.str();
             auto vol = p.volume->get_volume(p.bounds, t);
             auto pitch = p.pitch->get_pitch(p.bounds, t);
             s += p.instrument->get_sample(p.bounds, t, vol, pitch);
             normalize += max(vol.right, vol.left);
         }
         normalize = max(normalize, 1.0);
-        s.left /= normalize;
-        s.right /= normalize;
+        s *= scalars::volume{1/normalize, 1/normalize};
         sound_ = s;
     }
 

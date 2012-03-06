@@ -33,6 +33,16 @@ namespace sgr {
                 return make_tuple(f, r + factor);
             }
         }
+
+        /**
+         * Returns 
+         * 1  if a > 0
+         * 0  if a = 0
+         * -1 if a < 0
+         */
+        double sign(double a) {
+            return (a > 0)?1 : ((a<0)?-1 : 0);
+        }
         /**
          * Linear interpolation between a and b,
          * t within 0-1 (not checked).
@@ -45,6 +55,16 @@ namespace sgr {
         T linear_interpolate(const T a, const T b, double t)
         {
             return a * (1-t) + b * t;
+        }
+
+        auto quadratic_roots(double a, double b, double c)
+            -> decltype(std::make_tuple(a, b))
+        {
+            using std::make_tuple;
+            auto q = -0.5 * (b + sign(b)*sqrt(b*b - 4 * a * c));
+            auto x1 = q/a;
+            auto x2 = c/q;
+            return std::make_tuple(x1, x2);
         }
     } /* end namespace math */
 }
