@@ -210,8 +210,8 @@ public:
         if (!roll.empty()) {
             auto top = roll.top();
             if (top.bounds.start.beat <= t.beat) {
-//                std::cout << "Beat: " << t.beat.value << ". Adding " <<
-//                    top.str();
+                std::cout << "Beat: " << t.beat.value << ". Adding " <<
+                    top.str();
                 active.push_back(top);
                 roll.pop();
             }
