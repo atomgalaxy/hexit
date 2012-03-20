@@ -12,3 +12,6 @@ target_link_libraries(gr
     osgGA
     OpenThreads
     )
+add_executable(maze
+    maze.cpp
+    )

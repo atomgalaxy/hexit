@@ -6,6 +6,8 @@
  * @since 2012-02-07
  */
 
+#include "mazegenerator.hpp"
+
 #include <osg/Geode>
 #include <osg/Geometry>
 #include <osg/Material>
@@ -85,32 +87,33 @@ public:
     }
 
     void apply_commands(PhysicsObject& obj) {
+        double movespeed = 1;
         for (auto& key : pressed) {
             switch(key)
             {
                 case(osgGA::GUIEventAdapter::KEY_Down):
                 {
-                    obj.add_vel(osg::Vec3d(0.0,-0.01,0.0));
+                    obj.add_vel(osg::Vec3d(0.0,-movespeed,0.0));
                 }break;
                 case(osgGA::GUIEventAdapter::KEY_Up):
                 {
-                    obj.add_vel(osg::Vec3d(0.0,0.01,0.0));
+                    obj.add_vel(osg::Vec3d(0.0,movespeed,0.0));
                 }break;
                 case(osgGA::GUIEventAdapter::KEY_Left):
                 {
-                    obj.add_vel(osg::Vec3d(-0.01,0.0,0.0));
+                    obj.add_vel(osg::Vec3d(-movespeed,0.0,0.0));
                 }break;
                 case(osgGA::GUIEventAdapter::KEY_Right):
                 {
-                    obj.add_vel(osg::Vec3d(0.01,0.0,0.0));
+                    obj.add_vel(osg::Vec3d(movespeed,0.0,0.0));
                 }break;
                 case(osgGA::GUIEventAdapter::KEY_C):
                    {
-                    obj.add_vel(osg::Vec3d(0.0,0.0,-0.01));
+                    obj.add_vel(osg::Vec3d(0.0,0.0,-movespeed));
                 }break;
                 case(osgGA::GUIEventAdapter::KEY_Space):
                 {
-                    obj.add_vel(osg::Vec3d(0.0,0.0,0.01));
+                    obj.add_vel(osg::Vec3d(0.0,0.0,movespeed));
                 }break;
                 default:
                     break;
@@ -134,22 +137,23 @@ int main( int argc, char *argv[] )
     root->addChild(scenexform);
 
     auto xform1 = osg::ref_ptr<osg::PositionAttitudeTransform>(new osg::PositionAttitudeTransform());
-    int map_size = 51;
-    maze_type maze(boost::extents[5][5]);
-    maze_xform_type maze_xforms(boost::extents[5][5]);
-    for (int i = 0; i < 5; ++i) {
-        for (int j = 0; j < 5; ++j) {
-            maze[i][j] = rand()%2;
-            maze_xforms[i][j] = osg::ref_ptr<osg::PositionAttitudeTransform>(new osg::PositionAttitudeTransform);
-        }
-    }
-    int tab_size = 5;
-    for (int i = 0; i < tab_size; i++){
-        for (int j = 0; j < tab_size; j++){
+
+    int map_size = 81;
+
+    // generate bad random maze - load from Gal's code afterwards!
+    auto mpair = generate_maze(map_size, map_size);
+    auto shape = mpair.first;
+    auto maze = mpair.second;
+
+    // draw maze
+    maze_xform_type maze_xforms(shape);
+    for (size_t i = 0; i < map_size; i++){
+        for (size_t j = 0; j < map_size; j++){
             if (maze[i][j] == 1){
-                 maze_xforms[i][j]->addChild(box);
-                 maze_xforms[i][j]->setPosition(osg::Vec3d(j*40, i*40, 0));
-                 scenexform->addChild(maze_xforms[i][j]);
+                maze_xforms[i][j] = osg::ref_ptr<osg::PositionAttitudeTransform>(new osg::PositionAttitudeTransform);
+                maze_xforms[i][j]->addChild(box);
+                maze_xforms[i][j]->setPosition(osg::Vec3d(j*40, i*40, 0));
+                scenexform->addChild(maze_xforms[i][j]);
             }
         }
     }
@@ -175,6 +179,11 @@ int main( int argc, char *argv[] )
 
     viewer.realize();
     viewer.setCameraManipulator( new osgGA::TrackballManipulator );
+    viewer.getCameraManipulator()->setHomePosition(
+            osg::Vec3d(0,0,0),
+            osg::Vec3d(0,0,-1),
+            osg::Vec3d(0,1,0)
+            );
 
 //    viewer.run();
     while (!viewer.done()) {
