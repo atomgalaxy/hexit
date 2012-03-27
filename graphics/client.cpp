@@ -44,8 +44,10 @@ public:
     }
 
     void move() {
+        auto nex_pos = xform->getPosition() + velocity * 10;
         xform->setPosition(xform->getPosition() + velocity*10);
     }
+
     void clear() {
         velocity = osg::Vec3d(0,0,0);
     }
@@ -132,8 +134,9 @@ int main( int argc, char *argv[] )
 
     //osgDB::writeNodeFile(*root,"geoemtry.osgt");
     auto box = osgDB::readRefNodeFile("resources/box.IVE");
-    auto scenexform = osg::ref_ptr<osg::PositionAttitudeTransform>(new osg::PositionAttitudeTransform());
-    scenexform->setAttitude(osg::Quat(M_PI/3, osg::Vec3d(1,0,0)));
+    auto guy = osgDB::readRefNodeFile("resources/WIPguy.IVE");
+    auto scenexform = osg::ref_ptr<osg::MatrixTransform>(new osg::MatrixTransform());
+//    scenexform->setMatrix(osg::Matrixd::rotate(osg::Vec3d(0,1,0), osg::Vec3d(0,0,-1)));
     root->addChild(scenexform);
 
     auto xform1 = osg::ref_ptr<osg::PositionAttitudeTransform>(new osg::PositionAttitudeTransform());
@@ -158,7 +161,7 @@ int main( int argc, char *argv[] )
         }
     }
 
-    xform1->addChild(box);
+    xform1->addChild(guy);
 
     scenexform->addChild( xform1 );
 
@@ -168,6 +171,7 @@ int main( int argc, char *argv[] )
     auto xform = root->getChild(0)->asGroup()->getChild(0)->asTransform()
                         ->asPositionAttitudeTransform();
     PhysicsObject obj(xform1);
+    xform1->setPosition(osg::Vec3d(1,1,0));
 
     // add model to viewer.
     viewer.setSceneData( root );
@@ -178,17 +182,27 @@ int main( int argc, char *argv[] )
     viewer.addEventHandler(eventHandler);
 
     viewer.realize();
-    viewer.setCameraManipulator( new osgGA::TrackballManipulator );
-    viewer.getCameraManipulator()->setHomePosition(
-            osg::Vec3d(0,0,0),
-            osg::Vec3d(0,0,-1),
-            osg::Vec3d(0,1,0)
-            );
-
+    viewer.setCameraManipulator( nullptr );
+//    viewer.getCameraManipulator()->setHomePosition(
+//            osg::Vec3d(1111,111101,10),
+//            osg::Vec3d(11110,1110,-1),
+//            osg::Vec3d(11111110,+111111,11110)
+//            );
+    viewer.getCamera()->setProjectionMatrix(
+            osg::Matrixd::lookAt(
+                osg::Vec3d(0,0,0),
+                osg::Vec3d(0,0,-1),
+                osg::Vec3d(0,1,0)));
 //    viewer.run();
     while (!viewer.done()) {
         eventHandler->apply_commands(obj);
         obj.move();
+        viewer.getCamera()->setViewMatrix(
+                osg::Matrixd::lookAt(
+                    osg::Vec3d(600,800, 600),
+                    obj.xform->getPosition(),
+                    osg::Vec3d(0,1,0)
+                    ));
         obj.clear();
         viewer.frame();
     }
