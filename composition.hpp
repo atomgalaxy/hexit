@@ -204,19 +204,6 @@ public:
 
 };
 
-std::vector<sgr::notation::hit>
-uniform_rhythm(double beats, double start_t, double bps, double accent)
-{
-    std::vector<sgr::notation::hit> v;
-    double b = 0;
-    double time_per_beat = 1/bps;
-    while (b < beats) {
-        v.push_back(hit(start_t + time_per_beat * b, b, accent));
-        b+=time_per_beat;
-    }
-    return v;
-}
-
 }/* end namespace composition */
 }/* end namespace sgr */
 
