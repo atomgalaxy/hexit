@@ -106,7 +106,8 @@ class linear : public timing {
         : timing{duration}
         , start_bps{sbps}
         , end_bps{ebps}
-        , full_time_{(duration / (start_bps + end_bps)) * 2}
+        , full_time_{
+            (duration / units::interpolate(start_bps, end_bps, 0.5))*2}
     {}
 
 public:
@@ -122,7 +123,7 @@ public:
     units::bps bps(units::beat beat) const
     {
         auto path = beat_to_time(beat)/full_time();
-        return math::linear_interpolate(start_bps, end_bps, path);
+        return units::interpolate(start_bps, end_bps, path);
     }
 
     /**
@@ -139,8 +140,8 @@ public:
     {
         auto T = full_time();
         auto frac = time/T;
-        auto c = math::linear_interpolate(start_bps, end_bps, frac);
-        auto r = (start_bps + c)/2 * time;
+        auto c = units::interpolate(start_bps, end_bps, frac);
+        auto r = units::interpolate(start_bps, c, 0.5) * time;
         return r;
     }
 

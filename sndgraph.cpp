@@ -100,19 +100,19 @@ int main( int /* argc */, char ** /* argv */ )
 
     sgr::composition::resources stuff;
 
-    song << timing::linear::create(units::beat{200}, units::bps{1}, units::bps{1});
+    song << timing::linear::create(units::beat{200}, units::bps{1}, units::bps{10});
     song << timing::constant::create(units::beat{128}, units::bps{1});
 
     for (size_t i = 0; i < 20; i+=1) {
         song << note(
                 instrument::sawwave::create(),
-                volume::fade::create(sc::volume{0.5,0.5}, sc::volume{0.7,0.7}),
-                pitch::constant::create(units::tone{-36}),
+                volume::simple::create(sc::volume{1,1}),
+                pitch::constant::create(units::tone{-26}),
                 hit(units::beat{double(i*8)}, units::beat{4}, 1));
         song << note(
-                instrument::sawwave::create(),
-                volume::fade::create(sc::volume{0.7,0.7}, sc::volume{0.0,0.0}),
-                pitch::constant::create(units::tone{-36}),
+                instrument::sinewave::create(),
+                volume::simple::create(sc::volume{0.7,0.7}),
+                pitch::constant::create(units::tone{-4}),
                 hit(units::beat{double(i*8+4)}, units::beat{4}, 1));
     }
     callback_data data( sgr::player::player(song), 512);
