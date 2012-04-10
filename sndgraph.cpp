@@ -94,26 +94,52 @@ int main( int /* argc */, char ** /* argv */ )
 {
     using namespace sgr::notation;
     namespace sc = scalars;
+
     try {
 
     sgr::notation::song song;
 
     sgr::composition::resources stuff;
 
-    song << timing::linear::create(units::beat{200}, units::bps{1}, units::bps{10});
-    song << timing::constant::create(units::beat{128}, units::bps{1});
+    song << timing::linear::create(units::beat{200}, units::bps{35}, units::bps{40});
+    song << timing::constant::create(units::beat{128}, units::bps{30});
 
     for (size_t i = 0; i < 20; i+=1) {
+        auto pentmajor = stuff.scales()["pentatonic major"];
+        auto bassnote =  units::tone{-48} +
+            pentmajor.interval(
+                units::scale_offset(rand()%5));
+        auto midnote = units::tone{-12} + 
+            pentmajor.interval(
+                units::scale_offset(rand()%5));
+        auto trebnote = units::tone{0} + 
+            pentmajor.interval(
+                units::scale_offset(rand()%5));
+        auto hinote = units::tone{12} + 
+            pentmajor.interval(
+                units::scale_offset(rand()%5));
         song << note(
-                instrument::sawwave::create(),
-                volume::simple::create(sc::volume{1,1}),
-                pitch::constant::create(units::tone{-26}),
+                instrument::squarewave::create(),
+                volume::fade::create(sc::volume{0.5,0.5}, sc::volume{0.7,0.7}),
+                pitch::constant::create(bassnote),
                 hit(units::beat{double(i*8)}, units::beat{4}, 1));
         song << note(
-                instrument::sinewave::create(),
-                volume::simple::create(sc::volume{0.7,0.7}),
-                pitch::constant::create(units::tone{-4}),
+                instrument::sawwave::create(),
+                volume::fade::create(sc::volume{0.7,0.7}, sc::volume{0.0,0.0}),
+                pitch::constant::create(midnote),
                 hit(units::beat{double(i*8+4)}, units::beat{4}, 1));
+        if (i < 10) {
+            song << note(
+                    instrument::sinewave::create(),
+                    volume::simple::create(sc::volume{0.8,0.8}),
+                    pitch::constant::create(trebnote),
+                    hit(units::beat{double(i*16)}, units::beat{8}, 1));
+            song << note(
+                    instrument::sinewave::create(),
+                    volume::simple::create(sc::volume{0.8,0.8}),
+                    pitch::constant::create(hinote),
+                    hit(units::beat{double(i*16+8)}, units::beat{8}, 1));
+        }
     }
     callback_data data( sgr::player::player(song), 512);
 

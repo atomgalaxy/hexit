@@ -32,13 +32,15 @@ public:
     scale()
         : offsets() {}
 
-    template<typename Arg>
-    scale(Arg&& offsets)
-        : offsets(std::forward<Arg>(offsets))
+    scale(std::vector<units::interval> offsets_)
+        : offsets(offsets_)
     {}
 
     scale(scale&& sc)
         : offsets(std::move(sc.offsets))
+    {}
+    scale(const scale& sc)
+        : offsets(sc.offsets)
     {}
 
     /**
@@ -86,7 +88,7 @@ public:
      * @return the intervals.
      */
     intervals_type
-    intervals(const chord& ch)
+    intervals(const chord& ch) const
     {
         intervals_type t;
         for (auto i : ch) {
@@ -113,6 +115,59 @@ scale mode(const scale& sc, const units::scale_offset& n)
     }
 
     return scale{std::move(newscale)};
+}
+
+std::vector<sgr::notation::hit>
+waltzbeat_bass(units::beat biti0)
+{
+    using namespace sgr::notation;
+
+    std::vector<hit> bass;
+    for (int i = 0; i < biti0.value; ++i) {
+        double poudarek;
+        if (i%3 == 0) {
+            poudarek = 1;
+        } else {
+            poudarek = 0.7;
+        }
+        bass.push_back(hit(units::beat{double(i)}, units::beat{1}, poudarek));
+    }
+
+    for (int i = 0; i < 6; ++i) {
+        int a = rand() % 101;
+        if (a < 35) {
+          for (int j = 0; j < (biti0/3).value; ++j) {
+              bass.push_back(
+                      hit(
+                          units::beat{double(i)/2 + j*3},
+                          units::beat{0.5},
+                          0.4));
+            }
+        }
+    }
+    return bass;
+}
+
+std::vector<sgr::notation::hit>
+waltzbeat_mid(units::beat biti1)
+{
+    using namespace sgr::notation;
+
+    std::vector<sgr::notation::hit> mid;
+    return mid;
+}
+
+std::vector<std::vector<sgr::notation::hit>>
+waltzbeat(units::beat beati)
+{
+    using namespace sgr::notation;
+
+    std::vector<std::vector<hit>> rhythm;
+
+    rhythm.push_back(waltzbeat_bass(beati));
+    rhythm.push_back(waltzbeat_mid(beati));
+    rhythm.push_back(waltzbeat_high(beati));
+    return rhythm;
 }
 
 
@@ -195,11 +250,11 @@ public:
     }
 
     inline
-    const std::map<std::string, scale>&
+    decltype(scales_)&
     scales() { return scales_; }
 
     inline
-    const std::map<std::string, chord>&
+    decltype(chords_)&
     chords() { return chords_; }
 
 };
