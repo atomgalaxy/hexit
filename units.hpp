@@ -237,6 +237,36 @@ GENERATE_DIVISION(scalar, beat, beat)
 GENERATE_DIVISION(scalar, bps, bps)
 GENERATE_MULTIPLICATION(scalar, frequency, time)
 
+/// a chord is a series of tone-offsets relative to a scale.
+/// for instance, 0, 2, 4 (1, 3, 5) is the usual chord, that, when played in a
+/// major scale, gives a major chord.
+typedef std::vector<units::scale_offset> chord;
+typedef std::vector<units::interval> intervals_type;
+typedef std::vector<units::tone> tones_type;
+
+tones_type
+operator+(const intervals_type& ints, units::tone tone)
+{
+    tones_type out;
+    out.reserve(ints.size());
+    for (auto i : ints) {
+        out.emplace_back(tone + i);
+    }
+    return out;
+}
+
+tones_type
+operator+(units::tone tone, const intervals_type& ints)
+{
+    tones_type out;
+    out.reserve(ints.size());
+    for (auto i : ints) {
+        out.emplace_back(tone + i);
+    }
+    return out;
+}
+
+
 }
 
 }
