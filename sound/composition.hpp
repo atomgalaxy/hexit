@@ -37,10 +37,6 @@ public:
         : offsets(std::forward<Arg>(offsets))
     {}
 
-    scale(scale&& sc)
-        : offsets(std::move(sc.offsets))
-    {}
-
     /**
      * Get an interval from a scale.
      *
@@ -109,7 +105,7 @@ scale mode(const scale& sc, const units::scale_offset& n)
     intervals_type newscale;
 
     for (unsigned int i = 0; i < size; ++i) {
-        newscale.emplace_back(sc.interval(n + units::scale_offset{i}) - first);
+        newscale.emplace_back(sc.interval(n + units::scale_offset{(int)i}) - first);
     }
 
     return scale{std::move(newscale)};

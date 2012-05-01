@@ -1,3 +1,4 @@
+cmake_minimum_required(VERSION 2.8)
 project(hexit)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -Wall -Wextra -Weffc++ -pedantic -ggdb3")
@@ -24,3 +25,13 @@ target_link_libraries(client
     OpenThreads
     maps
     )
+
+include_directories(.)
+
+find_package(SDL REQUIRED)
+
+add_executable(sndgraph
+    sound/sndgraph.cpp
+    )
+target_link_libraries(sndgraph
+    ${SDL_LIBRARY})

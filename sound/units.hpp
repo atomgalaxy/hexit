@@ -8,8 +8,6 @@
  * @since 2012-02-09
  */
 
-#include <boost/operators.hpp>
-
 #include <sstream>
 #include <string>
 #include <cmath>
