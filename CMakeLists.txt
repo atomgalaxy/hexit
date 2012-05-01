@@ -34,4 +34,5 @@ add_executable(sndgraph
     sound/sndgraph.cpp
     )
 target_link_libraries(sndgraph
-    ${SDL_LIBRARY})
+    ${SDL_LIBRARY}
+    )

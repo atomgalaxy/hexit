@@ -17,6 +17,13 @@ int rand(unsigned int start, unsigned int end)
     return std::rand()%(end-start)+start;
 }
 
+
+template <typename RandomAccessContainer>
+auto random_pick(const RandomAccessContainer& c) -> decltype(c[0])
+{
+    return c[rand(0, c.size())];
+}
+
 /** Knuth Shuffle */
 template <typename Array>
 void random_shuffle(Array& a)

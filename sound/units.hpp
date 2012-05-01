@@ -11,6 +11,7 @@
 #include <sstream>
 #include <string>
 #include <cmath>
+#include <vector>
 
 #define GENERATE_OPERATOR2(Operator, ResultType, FirstType, SecondType) \
     inline constexpr \
@@ -100,6 +101,22 @@
 #define GENERATE_DIVISION(ResultType, FirstType, SecondType) \
     GENERATE_OPERATOR2(/, ResultType, FirstType, SecondType)
 
+#define GENERATE_LITERAL_OPERATOR(Type, Suffix, InputType) \
+
+#define GENERATE_LITERAL_INT_OPERATOR(Type, Suffix) \
+    namespace literals { \
+        Type operator "" Suffix(unsigned long long v) { \
+            return Type{int(v)};\
+        } \
+    }
+
+#define GENERATE_LITERAL_FLOAT_OPERATOR(Type, Suffix) \
+    namespace literals { \
+        Type operator "" Suffix(long double v) { \
+            return Type{double(v)};\
+        } \
+    }
+
 namespace sgr {
 namespace units {
 
@@ -108,7 +125,8 @@ typedef double scalar;
 static const scalar TAU = 2 * M_PI;
 static const scalar TWELFTH_ROOT_OF_2 = 1.05946309435929;
 
-/** Represents the offset of a tone within a scale. For instance, in a major
+/**
+ * Represents the offset of a tone within a scale. For instance, in a major
  * scale, 2 means a major third, but in a minor scale, 2 means a minor third.
  */
 struct scale_offset {
@@ -117,6 +135,7 @@ struct scale_offset {
 };
 GENERATE_ABELIAN_NO_INTERP(scale_offset)
 GENERATE_COMPARABLE(scale_offset)
+GENERATE_LITERAL_INT_OPERATOR(scale_offset, _in_scale)
 
 /** Modifies tones. */
 struct interval {
@@ -128,6 +147,7 @@ struct interval {
 };
 GENERATE_ABELIAN(interval)
 GENERATE_COMPARABLE(interval)
+GENERATE_LITERAL_FLOAT_OPERATOR(interval, _int)
 
 /** Offset from A440, in semitones. */
 struct tone {
@@ -161,6 +181,7 @@ struct tone {
 GENERATE_INTERPOLATE(tone)
 GENERATE_COMPARABLE(tone)
 GENERATE_ADDITION(tone, interval)
+GENERATE_LITERAL_FLOAT_OPERATOR(tone, _tone)
 
 /** In seconds. */
 struct time {
@@ -169,6 +190,7 @@ struct time {
 };
 GENERATE_ABELIAN(time)
 GENERATE_COMPARABLE(time)
+GENERATE_LITERAL_FLOAT_OPERATOR(time, _s)
 
 /** In Hz. */
 struct frequency {
@@ -185,6 +207,7 @@ struct frequency {
 };
 GENERATE_INTERPOLATE(frequency)
 GENERATE_COMPARABLE(frequency)
+GENERATE_LITERAL_FLOAT_OPERATOR(frequency, _Hz)
 
 /** In beats per second. */
 struct bps {
@@ -193,6 +216,7 @@ struct bps {
 };
 GENERATE_INTERPOLATE(bps)
 GENERATE_COMPARABLE(bps)
+GENERATE_LITERAL_FLOAT_OPERATOR(bps, _bps)
 
 struct beat {
     scalar value;
@@ -201,6 +225,7 @@ struct beat {
 GENERATE_ABELIAN(beat)
 GENERATE_COMPARABLE(beat)
 GENERATE_SCALAR_MULTIPLICATION(beat)
+GENERATE_LITERAL_FLOAT_OPERATOR(beat, _beats)
 
 GENERATE_MULTIPLICATION(beat, time, bps)
 GENERATE_SCALAR_MULTIPLICATION(time)
@@ -211,10 +236,33 @@ GENERATE_DIVISION(scalar, beat, beat)
 GENERATE_DIVISION(scalar, bps, bps)
 GENERATE_MULTIPLICATION(scalar, frequency, time)
 
+/// a chord is a series of tone-offsets relative to a scale.
+/// for instance, 0, 2, 4 (1, 3, 5) is the usual chord, that, when played in a
+/// major scale, gives a major chord.
+typedef std::vector<units::scale_offset> chord;
+typedef std::vector<units::interval> intervals_type;
+typedef std::vector<units::tone> tones_type;
+
+tones_type
+operator+(const intervals_type& ints, units::tone tone)
+{
+    tones_type out;
+    out.reserve(ints.size());
+    for (auto i : ints) {
+        out.emplace_back(tone + i);
+    }
+    return out;
 }
 
+tones_type
+operator+(units::tone tone, const intervals_type& ints)
+{
+    return ints + tone;
 }
 
+
+}
+}
 
 
 // UNDEF THE MACROS
@@ -231,5 +279,7 @@ GENERATE_MULTIPLICATION(scalar, frequency, time)
 #undef GENERATE_SCALAR_INVERSION
 #undef GENERATE_SCALAR_MULTIPLICATION
 #undef GENERATE_SUBSTRACTION
+#undef GENERATE_LITERAL_INT_OPERATOR
+#undef GENERATE_LITERAL_FLOAT_OPERATOR
 
 #endif

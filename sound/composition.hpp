@@ -10,6 +10,7 @@
 
 #include "math.hpp"
 #include "units.hpp"
+#include "../misc/utility.hpp"
 
 #include <boost/assign/std/vector.hpp>
 #include <utility>
@@ -18,13 +19,6 @@
 namespace sgr {
 namespace composition {
 
-/// a chord is a series of tone-offsets relative to a scale.
-/// for instance, 0, 2, 4 (1, 3, 5) is the usual chord, that, when played in a
-/// major scale, gives a major chord.
-typedef std::vector<units::scale_offset> chord;
-typedef std::vector<units::interval> intervals_type;
-typedef std::vector<units::tone> tones_type;
-
 class scale {
     std::vector<units::interval> offsets;
 
@@ -32,9 +26,8 @@ public:
     scale()
         : offsets() {}
 
-    template<typename Arg>
-    scale(Arg&& offsets)
-        : offsets(std::forward<Arg>(offsets))
+    scale(std::vector<units::interval> offsets_)
+        : offsets(offsets_)
     {}
 
     /**
@@ -77,14 +70,13 @@ public:
     /**
      * Get intervals from a chord.
      *
-     * @param ch the chord to convert to notes.
-     *
+     * @param ch the chord to convert to intervals.
      * @return the intervals.
      */
-    intervals_type
-    intervals(const chord& ch)
+    units::intervals_type
+    intervals(const units::chord& ch) const
     {
-        intervals_type t;
+        units::intervals_type t;
         for (auto i : ch) {
             t.emplace_back(interval(i));
         }
@@ -100,6 +92,8 @@ public:
  */
 scale mode(const scale& sc, const units::scale_offset& n)
 {
+    using namespace units;
+
     auto first = sc.interval(n);
     auto size = sc.size();
     intervals_type newscale;
@@ -111,9 +105,103 @@ scale mode(const scale& sc, const units::scale_offset& n)
     return scale{std::move(newscale)};
 }
 
+typedef std::vector<sgr::notation::hit> rhythm;
+
+rhythm
+waltzbeat_bass(units::beat biti)
+{
+    using namespace sgr::notation;
+    using utility::rand;
+
+    rhythm bass;
+    for (int i = 0; i < biti.value; ++i) {
+        double poudarek;
+        if (i%3 == 0) {
+            poudarek = 1;
+        } else {
+            poudarek = 0.7;
+        }
+        bass.push_back(hit(units::beat{double(i)}, units::beat{1}, poudarek));
+    }
+
+    for (int i = 0; i < 6; ++i) {
+        int a = rand(0, 101);
+        if (a < 35) {
+          for (int j = 0; j < (biti/3).value; ++j) {
+              bass.push_back(
+                      hit(
+                          units::beat{double(i)/2 + j*3},
+                          units::beat{0.5},
+                          0.4));
+            }
+        }
+    }
+    return bass;
+}
+
+/// TODO write the damn thing
+rhythm
+waltzbeat_mid(units::beat biti)
+{
+    using namespace sgr::notation;
+
+    std::vector<sgr::notation::hit> mid;
+    return mid;
+}
+
+/// TODO write the damn thing
+rhythm
+waltzbeat_high(units::beat biti)
+{
+    using namespace sgr::notation;
+
+    std::vector<sgr::notation::hit> high;
+    return high;
+}
+
+std::vector<rhythm>
+waltzbeat(units::beat beati)
+{
+    using namespace sgr::notation;
+
+    std::vector<rhythm> rhythm;
+
+    rhythm.push_back(waltzbeat_bass(beati));
+    rhythm.push_back(waltzbeat_mid(beati));
+    rhythm.push_back(waltzbeat_high(beati));
+    return rhythm;
+}
+
+/**
+ * Makes a melody out of a set of tones and a rhythm.
+ * @param hits the sequence of notes to generate a melody to
+ * @param tones the different tones we can use to generate a melody
+ * @return a sequence of notes.
+ */
+std::vector<sgr::notation::note>
+make_melody(
+        const std::vector<sgr::notation::hit>& hits,
+        const std::vector<units::tone>& tones
+        )
+{
+    using namespace notation;
+    using utility::random_pick;
+
+    std::vector<sgr::notation::note> notes;
+    for (auto i : hits) {
+        auto tone = random_pick(tones);
+        notes.emplace_back(
+                instrument::sinewave::create(),
+                volume::fade::create(scalars::volume{0.8,0.8}, scalars::volume{0.4,0.4}),
+                pitch::constant::create(tone),
+                i
+        );
+    }
+    return notes;
+}
 
 //namespace rhythm {
-///**
+////**
 // * Holds a passage of hits.
 // */
 //struct bar {
@@ -140,7 +228,7 @@ std::vector<units::interval>
 to_intervals(const std::initializer_list<double>& offs) {
     std::vector<units::interval> sc;
     for (auto n : offs) {
-        sc.emplace_back(units::interval{n});
+        sc.emplace_back(n);
     }
     return sc;
 }
@@ -149,7 +237,7 @@ class resources
 {
 private:
     std::map<std::string, scale> scales_;
-    std::map<std::string, chord> chords_;
+    std::map<std::string, units::chord> chords_;
 public:
 
     resources()
@@ -187,15 +275,15 @@ public:
         scales_["pentatonic blues major"]= mode(scales_["pentatonic minor"], scale_offset{4});
         scales_["pentatonic blues minor"]= mode(scales_["pentatonic minor"], scale_offset{5});
 
-        chords_["trichord"] = chord({scale_offset{0}, scale_offset{2}, scale_offset{4}});
+        chords_["trichord"] = units::chord({scale_offset{0}, scale_offset{2}, scale_offset{4}});
     }
 
     inline
-    const std::map<std::string, scale>&
+    decltype(scales_)&
     scales() { return scales_; }
 
     inline
-    const std::map<std::string, chord>&
+    decltype(chords_)&
     chords() { return chords_; }
 
 };
