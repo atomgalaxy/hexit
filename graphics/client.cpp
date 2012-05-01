@@ -6,7 +6,7 @@
  * @since 2012-02-07
  */
 
-#include "mazegenerator.hpp"
+#include "../maps/maze.hpp"
 
 #include <osg/Geode>
 #include <osg/Geometry>
@@ -38,9 +38,9 @@
 class PhysicsObject {
 public:
     PhysicsObject(osg::ref_ptr<osg::PositionAttitudeTransform> xform)
-        : xform(xform)
-        , velocity(osg::Vec3d(0,0,0))
+        : velocity(osg::Vec3d(0,0,0))
         , omega(osg::Quat(0, osg::Vec3d(1,0,0)))
+        , xform(xform)
     {}
 
     void add_vel(osg::Vec3d v) {
@@ -63,6 +63,7 @@ public:
 
     osg::Vec3d velocity;
     osg::Quat  omega;
+
     osg::ref_ptr<osg::PositionAttitudeTransform> xform;
 };
 
@@ -109,7 +110,7 @@ ijk()
 class KeyboardEventHandler : public osgGA::GUIEventHandler
 {
 public:
-    KeyboardEventHandler() {}
+    KeyboardEventHandler() : pressed() {}
 
     std::set<int> pressed;
 
@@ -134,6 +135,8 @@ public:
                     pressed.erase(it);
                 }
             }break;
+            default:
+                break;
         }
         return true;
     }
@@ -183,7 +186,7 @@ public:
                 case(osgGA::GUIEventAdapter::KEY_G):
                 {
                     obj.add_vel(osg::Vec3d(0.0,0.0,-0.398978678676678688));
-                }break;               
+                }break;
                 default:
                     break;
             }
@@ -198,7 +201,7 @@ typedef boost::multi_array<osg::ref_ptr<osg::PositionAttitudeTransform>, 2> maze
 #define TAU (M_PI * 2)
 
 
-int main( int argc, char *argv[] )
+int main( int , char ** )
 {
     osg::Group* root = new osg::Group;
 
@@ -216,18 +219,17 @@ int main( int argc, char *argv[] )
     auto guyxform = osg::ref_ptr<osg::PositionAttitudeTransform>(new osg::PositionAttitudeTransform());
     guyxform->addChild(guymodelxform);
 
-    int map_size = 81;
+    const int map_size_h = 81;
+    const int map_size_w = 91;
+    const double difficulty = 1;
 
-    // generate bad random maze - load from Gal's code afterwards!
-    auto mpair = generate_maze(map_size, map_size);
-    auto shape = mpair.first;
-    auto maze = mpair.second;
+    auto maze = maps::Maze(map_size_w, map_size_h, difficulty);
 
     // draw maze
-    maze_xform_type maze_xforms(shape);
-    for (size_t i = 0; i < map_size; i++){
-        for (size_t j = 0; j < map_size; j++){
-            if (maze[i][j] == 1){
+    maze_xform_type maze_xforms(boost::extents[maze.getHeight()][maze.getWidth()]);
+    for (size_t i = 0; i < maze.getHeight(); i++){
+        for (size_t j = 0; j < maze.getWidth(); j++){
+            if (maze.isWall(j, i)){
                 maze_xforms[i][j] = osg::ref_ptr<osg::PositionAttitudeTransform>(new osg::PositionAttitudeTransform);
                 maze_xforms[i][j]->addChild(box);
                 maze_xforms[i][j]->setPosition(osg::Vec3d(j*40, i*40, 0));
