@@ -108,7 +108,7 @@ scale mode(const scale& sc, const units::scale_offset& n)
     auto size = sc.size();
     intervals_type newscale;
 
-    for (unsigned int i = 0; i < size; ++i) {
+    for (int i = 0; i < (int)size; ++i) {
         newscale.emplace_back(sc.interval(n + units::scale_offset{i}) - first);
     }
 
