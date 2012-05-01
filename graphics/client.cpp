@@ -37,24 +37,74 @@
 
 class PhysicsObject {
 public:
-    PhysicsObject(osg::ref_ptr<osg::PositionAttitudeTransform> xform) : xform(xform) {}
+    PhysicsObject(osg::ref_ptr<osg::PositionAttitudeTransform> xform)
+        : xform(xform)
+        , velocity(osg::Vec3d(0,0,0))
+        , omega(osg::Quat(0, osg::Vec3d(1,0,0)))
+    {}
 
     void add_vel(osg::Vec3d v) {
-        velocity += v;
+        velocity += xform->getAttitude() * v;
+    }
+
+    void add_rot(osg::Quat q) {
+        omega *= q;
     }
 
     void move() {
-        auto nex_pos = xform->getPosition() + velocity * 10;
-        xform->setPosition(xform->getPosition() + velocity*10);
+        xform->setPosition(xform->getPosition() + velocity);
+        xform->setAttitude(xform->getAttitude() * omega);
     }
 
     void clear() {
         velocity = osg::Vec3d(0,0,0);
+        omega    = osg::Quat(0, osg::Vec3d(1,0,0));
     }
 
     osg::Vec3d velocity;
+    osg::Quat  omega;
     osg::ref_ptr<osg::PositionAttitudeTransform> xform;
 };
+
+osg::ref_ptr<osg::Geode>
+ijk()
+{
+    osg::ref_ptr<osg::Geode> parent = new osg::Geode();
+    osg::ref_ptr<osg::Geometry> geometry = new osg::Geometry();
+    parent->addDrawable(geometry);
+
+    osg::ref_ptr<osg::Vec4Array> colors = new osg::Vec4Array();
+    colors->push_back(osg::Vec4(1.f, 1.f, 1.f, 1.f)); /* middle */
+    colors->push_back(osg::Vec4(1.f, 0.f, 0.f, 1.f)); /* i */
+    colors->push_back(osg::Vec4(0.f, 1.f, 0.f, 1.f)); /* j */
+    colors->push_back(osg::Vec4(0.f, 0.f, 1.f, 1.f)); /* k */
+
+
+    osg::ref_ptr<osg::Vec3Array> points = new osg::Vec3Array();
+    points->push_back(osg::Vec3(0.f, 0.f, 0.f)); /* middle */
+    points->push_back(osg::Vec3(1.f, 0.f, 0.f)); /* i */
+    points->push_back(osg::Vec3(0.f, 1.f, 0.f)); /* j */
+    points->push_back(osg::Vec3(0.f, 0.f, 1.f)); /* k */
+
+    osg::ref_ptr<osg::DrawElementsUInt> lines =
+        new osg::DrawElementsUInt(osg::PrimitiveSet::LINES, 0);
+    lines->push_back(0);
+    lines->push_back(1);
+    lines->push_back(0);
+    lines->push_back(2);
+    lines->push_back(0);
+    lines->push_back(3);
+
+    geometry->setVertexArray(points);
+    geometry->setColorArray(colors);
+    geometry->addPrimitiveSet(lines);
+    geometry->setColorBinding(osg::Geometry::BIND_PER_VERTEX);
+
+    parent->getOrCreateStateSet()->setMode( GL_LIGHTING,
+            osg::StateAttribute::PROTECTED | osg::StateAttribute::OFF );
+
+    return parent;
+}
 
 class KeyboardEventHandler : public osgGA::GUIEventHandler
 {
@@ -89,34 +139,51 @@ public:
     }
 
     void apply_commands(PhysicsObject& obj) {
-        double movespeed = 1;
+        double movespeed =
+            0.027869470349083095035789384576097879050347563756563587097654766897654;
         for (auto& key : pressed) {
             switch(key)
             {
-                case(osgGA::GUIEventAdapter::KEY_Down):
+                case(osgGA::GUIEventAdapter::KEY_C):
                 {
                     obj.add_vel(osg::Vec3d(0.0,-movespeed,0.0));
                 }break;
-                case(osgGA::GUIEventAdapter::KEY_Up):
+                case(osgGA::GUIEventAdapter::KEY_Space):
                 {
                     obj.add_vel(osg::Vec3d(0.0,movespeed,0.0));
                 }break;
                 case(osgGA::GUIEventAdapter::KEY_Left):
+                case(osgGA::GUIEventAdapter::KEY_A):
                 {
                     obj.add_vel(osg::Vec3d(-movespeed,0.0,0.0));
                 }break;
                 case(osgGA::GUIEventAdapter::KEY_Right):
+                case(osgGA::GUIEventAdapter::KEY_D):
                 {
                     obj.add_vel(osg::Vec3d(movespeed,0.0,0.0));
                 }break;
-                case(osgGA::GUIEventAdapter::KEY_C):
-                   {
-                    obj.add_vel(osg::Vec3d(0.0,0.0,-movespeed));
-                }break;
-                case(osgGA::GUIEventAdapter::KEY_Space):
+                case(osgGA::GUIEventAdapter::KEY_S):
+                case(osgGA::GUIEventAdapter::KEY_Down):
                 {
                     obj.add_vel(osg::Vec3d(0.0,0.0,movespeed));
                 }break;
+                case(osgGA::GUIEventAdapter::KEY_W):
+                case(osgGA::GUIEventAdapter::KEY_Up):
+                {
+                    obj.add_vel(osg::Vec3d(0.0,0.0,-movespeed));
+                }break;
+                case(osgGA::GUIEventAdapter::KEY_Q):
+                {
+                    obj.add_rot(osg::Quat(0.001,osg::Vec3d(0.0,1.0,0.0)));
+                }break;
+                case(osgGA::GUIEventAdapter::KEY_E):
+                {
+                    obj.add_rot(osg::Quat(-0.001,osg::Vec3d(0.0,1.0,0.0)));
+                }break;
+                case(osgGA::GUIEventAdapter::KEY_G):
+                {
+                    obj.add_vel(osg::Vec3d(0.0,0.0,-0.398978678676678688));
+                }break;               
                 default:
                     break;
             }
@@ -128,6 +195,9 @@ public:
 typedef boost::multi_array<int, 2> maze_type;
 typedef boost::multi_array<osg::ref_ptr<osg::PositionAttitudeTransform>, 2> maze_xform_type;
 
+#define TAU (M_PI * 2)
+
+
 int main( int argc, char *argv[] )
 {
     osg::Group* root = new osg::Group;
@@ -135,11 +205,16 @@ int main( int argc, char *argv[] )
     //osgDB::writeNodeFile(*root,"geoemtry.osgt");
     auto box = osgDB::readRefNodeFile("resources/box.IVE");
     auto guy = osgDB::readRefNodeFile("resources/WIPguy.IVE");
-    auto scenexform = osg::ref_ptr<osg::MatrixTransform>(new osg::MatrixTransform());
-//    scenexform->setMatrix(osg::Matrixd::rotate(osg::Vec3d(0,1,0), osg::Vec3d(0,0,-1)));
-    root->addChild(scenexform);
+    auto mazexform = osg::ref_ptr<osg::MatrixTransform>(new osg::MatrixTransform());
+    mazexform->setMatrix(osg::Matrixd::rotate(osg::Vec3d(0,-1,0), osg::Vec3d(0,0,-1)));
+//    root->addChild(mazexform);
 
-    auto xform1 = osg::ref_ptr<osg::PositionAttitudeTransform>(new osg::PositionAttitudeTransform());
+    auto guymodelxform = osg::ref_ptr<osg::PositionAttitudeTransform>(new osg::PositionAttitudeTransform());
+    guymodelxform->setAttitude(osg::Quat(-TAU/4, osg::Vec3d(1,0,0)) * osg::Quat(TAU/2, osg::Vec3d(0,1,0)));
+    guymodelxform->setScale(osg::Vec3d(0.05,0.05,0.05));
+
+    auto guyxform = osg::ref_ptr<osg::PositionAttitudeTransform>(new osg::PositionAttitudeTransform());
+    guyxform->addChild(guymodelxform);
 
     int map_size = 81;
 
@@ -156,22 +231,23 @@ int main( int argc, char *argv[] )
                 maze_xforms[i][j] = osg::ref_ptr<osg::PositionAttitudeTransform>(new osg::PositionAttitudeTransform);
                 maze_xforms[i][j]->addChild(box);
                 maze_xforms[i][j]->setPosition(osg::Vec3d(j*40, i*40, 0));
-                scenexform->addChild(maze_xforms[i][j]);
+                maze_xforms[i][j]->setAttitude(osg::Quat(M_PI, osg::Vec3d(1,0,0) ));
+                mazexform->addChild(maze_xforms[i][j]);
             }
         }
     }
 
-    xform1->addChild(guy);
+    guymodelxform->addChild(guy);
 
-    scenexform->addChild( xform1 );
+    root->addChild( guyxform );
 
     osgViewer::Viewer viewer;
     viewer.setThreadingModel(osgViewer::Viewer::SingleThreaded);
 
-    auto xform = root->getChild(0)->asGroup()->getChild(0)->asTransform()
-                        ->asPositionAttitudeTransform();
-    PhysicsObject obj(xform1);
-    xform1->setPosition(osg::Vec3d(1,1,0));
+    PhysicsObject obj(guyxform);
+    guyxform->setPosition(osg::Vec3d(1,1,0));
+
+    root->addChild(mazexform);
 
     // add model to viewer.
     viewer.setSceneData( root );
@@ -189,7 +265,8 @@ int main( int argc, char *argv[] )
 //            osg::Vec3d(11111110,+111111,11110)
 //            );
     viewer.getCamera()->setProjectionMatrix(
-            osg::Matrixd::lookAt(
+            osg::Matrixd::perspective(72, 16.0/10.0, 1, 1000)
+            * osg::Matrixd::lookAt(
                 osg::Vec3d(0,0,0),
                 osg::Vec3d(0,0,-1),
                 osg::Vec3d(0,1,0)));
@@ -199,9 +276,9 @@ int main( int argc, char *argv[] )
         obj.move();
         viewer.getCamera()->setViewMatrix(
                 osg::Matrixd::lookAt(
-                    osg::Vec3d(600,800, 600),
-                    obj.xform->getPosition(),
-                    osg::Vec3d(0,1,0)
+                    /* where we are */ obj.xform->getPosition() + obj.xform->getAttitude() * osg::Vec3d(0,6,6),
+                    /* what we are looking at */ obj.xform->getPosition(),
+                    /* up vector */ osg::Vec3d(0,1,0)
                     ));
         obj.clear();
         viewer.frame();
