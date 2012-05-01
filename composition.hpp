@@ -18,13 +18,6 @@
 namespace sgr {
 namespace composition {
 
-/// a chord is a series of tone-offsets relative to a scale.
-/// for instance, 0, 2, 4 (1, 3, 5) is the usual chord, that, when played in a
-/// major scale, gives a major chord.
-typedef std::vector<units::scale_offset> chord;
-typedef std::vector<units::interval> intervals_type;
-typedef std::vector<units::tone> tones_type;
-
 class scale {
     std::vector<units::interval> offsets;
 
@@ -117,13 +110,15 @@ scale mode(const scale& sc, const units::scale_offset& n)
     return scale{std::move(newscale)};
 }
 
-std::vector<sgr::notation::hit>
-waltzbeat_bass(units::beat biti0)
+typedef std::vector<sgr::notation::hit> hits_type;
+
+hits_type
+waltzbeat_bass(units::beat biti)
 {
     using namespace sgr::notation;
 
-    std::vector<hit> bass;
-    for (int i = 0; i < biti0.value; ++i) {
+    hits_type bass;
+    for (int i = 0; i < biti.value; ++i) {
         double poudarek;
         if (i%3 == 0) {
             poudarek = 1;
@@ -136,7 +131,7 @@ waltzbeat_bass(units::beat biti0)
     for (int i = 0; i < 6; ++i) {
         int a = rand() % 101;
         if (a < 35) {
-          for (int j = 0; j < (biti0/3).value; ++j) {
+          for (int j = 0; j < (biti/3).value; ++j) {
               bass.push_back(
                       hit(
                           units::beat{double(i)/2 + j*3},
@@ -148,8 +143,8 @@ waltzbeat_bass(units::beat biti0)
     return bass;
 }
 
-std::vector<sgr::notation::hit>
-waltzbeat_mid(units::beat biti1)
+hits_type
+waltzbeat_mid(units::beat biti)
 {
     using namespace sgr::notation;
 
@@ -157,22 +152,49 @@ waltzbeat_mid(units::beat biti1)
     return mid;
 }
 
-std::vector<std::vector<sgr::notation::hit>>
+hits_type
+waltzbeat_high(units::beat biti)
+{
+    using namespace sgr::notation;
+
+    std::vector<sgr::notation::hit> high;
+    return high;
+}
+
+std::vector<hits_type>
 waltzbeat(units::beat beati)
 {
     using namespace sgr::notation;
 
-    std::vector<std::vector<hit>> rhythm;
+    std::vector<hits_type> rhythm;
 
     rhythm.push_back(waltzbeat_bass(beati));
     rhythm.push_back(waltzbeat_mid(beati));
     rhythm.push_back(waltzbeat_high(beati));
     return rhythm;
 }
-
+std::vector<sgr::notation::note>
+generate_notes(
+        const std::vector<sgr::notation::hit>& hits,
+        const std::vector<units::tone>& tones
+        )
+{
+    std::vector<sgr::notation::note> nota;
+    ton = tones.front();
+    for (auto i : hits) {
+        nota.push_back(
+            note(
+                instrument::squarewave::create(),
+                volume::fade::create(sc::volume{0.5,0.5}, sc::volume{0.7,0.7}),
+                pitch::constant::create(ton),
+                i)
+        );
+    }
+    return nota;
+}
 
 //namespace rhythm {
-///**
+////**
 // * Holds a passage of hits.
 // */
 //struct bar {
