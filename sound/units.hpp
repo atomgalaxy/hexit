@@ -101,21 +101,25 @@
 #define GENERATE_DIVISION(ResultType, FirstType, SecondType) \
     GENERATE_OPERATOR2(/, ResultType, FirstType, SecondType)
 
-#define GENERATE_LITERAL_OPERATOR(Type, Suffix, InputType) \
-
-#define GENERATE_LITERAL_INT_OPERATOR(Type, Suffix) \
+#if __GNUC__ > 3 && __GNUC_MINOR__ > 6
+# define GENERATE_LITERAL_INT_OPERATOR(Type, Suffix) \
     namespace literals { \
         Type operator "" Suffix(unsigned long long v) { \
             return Type{int(v)};\
         } \
     }
 
-#define GENERATE_LITERAL_FLOAT_OPERATOR(Type, Suffix) \
+# define GENERATE_LITERAL_FLOAT_OPERATOR(Type, Suffix) \
     namespace literals { \
         Type operator "" Suffix(long double v) { \
             return Type{double(v)};\
         } \
     }
+#else
+# define GENERATE_LITERAL_INT_OPERATOR(Type, Suffix)
+# define GENERATE_LITERAL_FLOAT_OPERATOR(Type, Suffix)
+#endif
+
 
 namespace sgr {
 namespace units {
