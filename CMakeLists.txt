@@ -36,3 +36,10 @@ add_executable(sndgraph
 target_link_libraries(sndgraph
     ${SDL_LIBRARY}
     )
+
+add_executable(engine_test
+    engine/engine.cpp
+    )
+target_link_libraries(engine_test
+    maps
+    )

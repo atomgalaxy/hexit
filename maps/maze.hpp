@@ -39,6 +39,7 @@ struct Object {
 };
 
 class Maze {
+    private:
     enum class FieldTypes : unsigned int {
         TYPE_MASK = 0xff000000,
         PATH = 0x01000000,
@@ -179,6 +180,8 @@ class Maze {
     decltype(width)  getWidth()  const { return width; }
     decltype(height) getHeight() const { return height; }
 
+    decltype(start) getStart() const { return start; }
+    decltype(finish) getFinish() const { return finish; }
 };
 } // end namespace maps
 
