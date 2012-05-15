@@ -264,8 +264,38 @@ operator+(units::tone tone, const intervals_type& ints)
     return ints + tone;
 }
 
+intervals_type
+operator+(units::interval v, intervals_type ints)
+{
+    for (auto& i : ints) {
+        i += v;
+    }
+    return ints;
+}
+
+intervals_type
+operator+(const intervals_type& ints, units::interval v)
+{
+    return v + ints;
+}
+
+chord
+operator+(units::scale_offset v, chord ints)
+{
+    for (auto& i : ints) {
+        i += v;
+    }
+    return ints;
+}
+
+chord
+operator+(const chord& ints, units::scale_offset v)
+{
+    return v + ints;
+}
 
 }
+
 }
 
 

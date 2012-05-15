@@ -93,54 +93,88 @@ void audio_callback(void *userdata, Uint8 *stream_in, int len_in) {
 int main( int /* argc */, char ** /* argv */ )
 {
     using namespace sgr::notation;
+    using units::scale_offset;
     namespace sc = scalars;
 
     try {
+
+    const auto number_of_bars = 64;
+    const auto beats_per_bar = 3;
+    const auto bars_per_chord = 4;
 
     sgr::notation::song song;
 
     sgr::composition::resources stuff;
 
-    song << timing::linear::create(units::beat{200}, units::bps{35}, units::bps{40});
-    song << timing::constant::create(units::beat{128}, units::bps{30});
+    auto lestvica = stuff.scales()["ionian"];
+    auto trozvok = stuff.chords()["trichord"];
+    auto dur_akord = lestvica.intervals(trozvok);
 
-    for (size_t i = 0; i < 20; i+=1) {
-        auto pentmajor = stuff.scales()["pentatonic major"];
-        auto bassnote =  units::tone{-48} +
-            pentmajor.interval(
-                units::scale_offset(rand()%5));
-        auto midnote = units::tone{-12} + 
-            pentmajor.interval(
-                units::scale_offset(rand()%5));
-        auto trebnote = units::tone{0} + 
-            pentmajor.interval(
-                units::scale_offset(rand()%5));
-        auto hinote = units::tone{12} + 
-            pentmajor.interval(
-                units::scale_offset(rand()%5));
-        song << note(
-                instrument::squarewave::create(),
-                volume::fade::create(sc::volume{0.5,0.5}, sc::volume{0.7,0.7}),
-                pitch::constant::create(bassnote),
-                hit(units::beat{double(i*8)}, units::beat{4}, 1));
-        song << note(
-                instrument::sawwave::create(),
-                volume::fade::create(sc::volume{0.7,0.7}, sc::volume{0.0,0.0}),
-                pitch::constant::create(midnote),
-                hit(units::beat{double(i*8+4)}, units::beat{4}, 1));
-        if (i < 10) {
-            song << note(
-                    instrument::sinewave::create(),
-                    volume::simple::create(sc::volume{0.8,0.8}),
-                    pitch::constant::create(trebnote),
-                    hit(units::beat{double(i*16)}, units::beat{8}, 1));
-            song << note(
-                    instrument::sinewave::create(),
-                    volume::simple::create(sc::volume{0.8,0.8}),
-                    pitch::constant::create(hinote),
-                    hit(units::beat{double(i*16+8)}, units::beat{8}, 1));
+    auto basenote = units::tone{-19};
+
+    auto basechord   = basenote + dur_akord;
+    auto subdominant = basenote + lestvica.intervals(scale_offset{3} + trozvok);
+    auto dominant    = basenote + lestvica.intervals(scale_offset{4} + trozvok);
+
+    auto toni = std::vector<vector<units::tone>>();
+    toni.reserve(4);
+    toni.push_back(basechord);
+    toni.push_back(subdominant);
+    toni.push_back(dominant);
+    toni.push_back(basechord);
+
+    for (auto i = 0; i < number_of_bars/(bars_per_chord*toni.size()); ++i) {
+        for (auto j = 0; j < toni.size(); ++j) { // generate all chords
+            auto phrase_length = units::beat{beats_per_bar * bars_per_chord};
+            sgr::notation::song phrase;
+            phrase << timing::constant::create(phrase_length, units::bps{2});
+
+            auto ritem = sgr::composition::waltzbeat_bass(phrase_length);
+            auto note  = sgr::composition::make_melody(ritem, toni[j]);
+            phrase << note;
+
+            song << phrase;
         }
     }
+//    song << timing::linear::create(units::beat{200}, units::bps{35}, units::bps{40});
+//    song << timing::constant::create(units::beat{128}, units::bps{30});
+
+//    for (size_t i = 0; i < 20; i+=1) {
+//        auto pentmajor = stuff.scales()["pentatonic major"];
+//        auto bassnote =  units::tone{-48} +
+//            pentmajor.interval(
+//                units::scale_offset(rand()%5));
+//        auto midnote = units::tone{-12} + 
+//            pentmajor.interval(
+//                units::scale_offset(rand()%5));
+//        auto trebnote = units::tone{0} + 
+//            pentmajor.interval(
+//                units::scale_offset(rand()%5));
+//        auto hinote = units::tone{12} + 
+//            pentmajor.interval(
+//                units::scale_offset(rand()%5));
+//        song << note(
+//                instrument::squarewave::create(),
+//                volume::fade::create(sc::volume{0.5,0.5}, sc::volume{0.7,0.7}),
+//                pitch::constant::create(bassnote),
+//                hit(units::beat{double(i*8)}, units::beat{4}, 1));
+//        song << note(
+//                instrument::sawwave::create(),
+//                volume::fade::create(sc::volume{0.7,0.7}, sc::volume{0.0,0.0}),
+//                pitch::constant::create(midnote),
+//                hit(units::beat{double(i*8+4)}, units::beat{4}, 1));
+//        if (i < 10) {
+//            song << note(
+//                    instrument::sinewave::create(),
+//                    volume::simple::create(sc::volume{0.8,0.8}),
+//                    pitch::constant::create(trebnote),
+//                    hit(units::beat{double(i*16)}, units::beat{8}, 1));
+//            song << note(
+//                    instrument::sinewave::create(),
+//                    volume::simple::create(sc::volume{0.8,0.8}),
+//                    pitch::constant::create(hinote),
+//                    hit(units::beat{double(i*16+8)}, units::beat{8}, 1));
+
     callback_data data( sgr::player::player(song), 512);
 
     std::cout << "channels: " << (int) data.fmt.channels << " samples: " <<
