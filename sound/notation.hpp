@@ -119,13 +119,19 @@ public:
     song()
         : notes_()
         , timings_()
+        , beat_length_(0)
         , listener(nullptr)
     {}
 
     /* actual song functions */
     song& operator<<(const song& s)
     {
+        auto start_of_phrase = beat_length_;
+        for (auto t : s.timings_) {
+            add_timing(t);
+        }
         for (auto n : s.notes_) {
+            n.duration.start += start_of_phrase;
             add_note(n);
         }
         return *this;
@@ -152,6 +158,7 @@ public:
 
     song& add_timing(const timing::timing::pointer_type& t)
     {
+        beat_length_ += t->full_beats();
         timings_.push_back(t);
         return *this;
     }
@@ -193,6 +200,7 @@ private:
     /// notes_
     std::vector<note> notes_;
     std::vector<timing::timing::pointer_type> timings_;
+    units::beat beat_length_;
 public:
 
     const decltype(notes_)& notes()
