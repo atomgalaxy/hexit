@@ -43,3 +43,8 @@ add_executable(engine_test
 target_link_libraries(engine_test
     maps
     )
+
+add_executable(network_client
+    network/client.cpp)
+add_executable(network_server
+    network/server.cpp)
