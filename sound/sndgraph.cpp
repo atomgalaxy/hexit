@@ -106,22 +106,13 @@ int main( int /* argc */, char ** /* argv */ )
 
     sgr::composition::resources stuff;
 
-    auto lestvica = stuff.scales()["ionian"];
+    auto lestvica = stuff.scales()["dorian"];
     auto trozvok = stuff.chords()["trichord"];
-    auto dur_akord = lestvica.intervals(trozvok);
-
+    auto progression = stuff.progressions()["punk"];
     auto basenote = units::tone{-19};
 
-    auto basechord   = basenote + dur_akord;
-    auto subdominant = basenote + lestvica.intervals(scale_offset{3} + trozvok);
-    auto dominant    = basenote + lestvica.intervals(scale_offset{4} + trozvok);
-
-    auto toni = std::vector<vector<units::tone>>();
-    toni.reserve(4);
-    toni.push_back(basechord);
-    toni.push_back(subdominant);
-    toni.push_back(dominant);
-    toni.push_back(basechord);
+    auto chords = lestvica.progression(progression, trozvok);
+    auto toni = basenote + chords;
 
     for (auto i = 0; i < number_of_bars/(bars_per_chord*toni.size()); ++i) {
         for (auto j = 0; j < toni.size(); ++j) { // generate all chords

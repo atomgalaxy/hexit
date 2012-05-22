@@ -83,6 +83,16 @@ public:
         return t;
     }
 
+    std::vector<units::intervals_type>
+    progression(units::chord progression, units::chord basechord) const
+    {
+        std::vector<units::intervals_type> r;
+        for (auto i : progression) {
+            r.push_back(intervals(i + basechord));
+        }
+        return r;
+    }
+
     size_t size() const { return offsets.size(); }
 
 };
@@ -238,6 +248,7 @@ class resources
 private:
     std::map<std::string, scale> scales_;
     std::map<std::string, units::chord> chords_;
+    std::map<std::string, units::chord> progressions_;
 public:
 
     resources()
@@ -276,6 +287,8 @@ public:
         scales_["pentatonic blues minor"]= mode(scales_["pentatonic minor"], scale_offset{5});
 
         chords_["trichord"] = units::chord({scale_offset{0}, scale_offset{2}, scale_offset{4}});
+        
+        progressions_["punk"] = units::chord({scale_offset{0}, scale_offset{3}, scale_offset{4}, scale_offset{0}});
     }
 
     inline
@@ -285,6 +298,10 @@ public:
     inline
     decltype(chords_)&
     chords() { return chords_; }
+
+    inline
+    decltype(progressions_)&
+    progressions() { return progressions_; }
 
 };
 
