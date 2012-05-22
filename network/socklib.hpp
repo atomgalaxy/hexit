@@ -82,19 +82,16 @@ struct Addr {
         if (rv != 0) {
             fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
             throw addrinfo_error();
-            }
+        }
         // loop through all the results and make a socket
         for(auto p = servinfo; p != nullptr; p = p->ai_next) {
             if ((data.sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
                 perror("talker: socket");
                 continue;
-                }
+            }
             break;
-	}
-
-        //iz rv len
+        }
         freeaddrinfo(servinfo);
-
     }
 
     Addr(const decltype(addr)& addr, const decltype(len) len)

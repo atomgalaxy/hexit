@@ -108,30 +108,28 @@ int main( int /* argc */, char ** /* argv */ )
 
     auto lestvica = stuff.scales()["ionian"];
     auto trozvok = stuff.chords()["trichord"];
-    auto dur_akord = lestvica.intervals(trozvok);
+    auto progression = stuff.progressions()["punk"];
+    auto bass_basenote = units::tone{-31};
+    auto mid_basenote = units::tone{-19};
 
-    auto basenote = units::tone{-19};
+    auto chords = lestvica.progression(progression, trozvok);
+    auto bass_toni = bass_basenote + chords;
+    auto mid_toni = mid_basenote + chords;
 
-    auto basechord   = basenote + dur_akord;
-    auto subdominant = basenote + lestvica.intervals(scale_offset{3} + trozvok);
-    auto dominant    = basenote + lestvica.intervals(scale_offset{4} + trozvok);
-
-    auto toni = std::vector<vector<units::tone>>();
-    toni.reserve(4);
-    toni.push_back(basechord);
-    toni.push_back(subdominant);
-    toni.push_back(dominant);
-    toni.push_back(basechord);
-
-    for (size_t i = 0; i < number_of_bars/(bars_per_chord*toni.size()); ++i) {
-        for (size_t j = 0; j < toni.size(); ++j) { // generate all chords
+    for (auto i = 0; i < number_of_bars/(bars_per_chord*bass_toni.size()); ++i) {
+        for (auto j = 0; j < bass_toni.size(); ++j) { // generate all chords
             auto phrase_length = units::beat{beats_per_bar * bars_per_chord};
             sgr::notation::song phrase;
             phrase << timing::constant::create(phrase_length, units::bps{2});
 
-            auto ritem = sgr::composition::waltzbeat_bass(phrase_length);
-            auto note  = sgr::composition::make_melody(ritem, toni[j]);
-            phrase << note;
+            auto bass_ritem = sgr::composition::waltzbeat_bass(phrase_length);
+            auto mid_ritem  = sgr::composition::waltzbeat_mid(phrase_length);
+
+            auto bass_note = sgr::composition::make_melody(bass_ritem, bass_toni[j]);
+            phrase << bass_note;
+
+            auto mid_note = sgr::composition::make_melody(mid_ritem, mid_toni[j]);
+            phrase << mid_note;
 
             song << phrase;
         }

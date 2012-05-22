@@ -83,6 +83,16 @@ public:
         return t;
     }
 
+    std::vector<units::intervals_type>
+    progression(units::chord progression, units::chord basechord) const
+    {
+        std::vector<units::intervals_type> r;
+        for (auto i : progression) {
+            r.push_back(intervals(i + basechord));
+        }
+        return r;
+    }
+
     size_t size() const { return offsets.size(); }
 
 };
@@ -117,35 +127,45 @@ waltzbeat_bass(units::beat biti)
     for (int i = 0; i < biti.value; ++i) {
         double poudarek;
         if (i%3 == 0) {
+            poudarek = 0.3;
+        } else {
+            poudarek = 0.05;
+        }
+        bass.push_back(hit(units::beat{double(i)}, units::beat{1}, poudarek));
+    }
+    return bass;
+}
+
+/// TODO write the damn thing
+rhythm
+waltzbeat_mid(units::beat biti)
+{
+    using namespace sgr::notation;
+    using utility::rand;
+
+    rhythm mid;
+    for (int i = 0; i < biti.value; ++i) {
+        double poudarek;
+        if (i%3 == 0) {
             poudarek = 1;
         } else {
             poudarek = 0.7;
         }
-        bass.push_back(hit(units::beat{double(i)}, units::beat{1}, poudarek));
+        mid.push_back(hit(units::beat{double(i)}, units::beat{1}, poudarek));
     }
 
     for (int i = 0; i < 6; ++i) {
         int a = rand(0, 101);
         if (a < 35) {
           for (int j = 0; j < (biti/3).value; ++j) {
-              bass.push_back(
+              mid.push_back(
                       hit(
                           units::beat{double(i)/2 + j*3},
                           units::beat{0.5},
-                          0.4));
+                          0.5));
             }
         }
     }
-    return bass;
-}
-
-/// TODO write the damn thing
-notation::rhythm
-waltzbeat_mid(units::beat biti)
-{
-    using namespace sgr::notation;
-
-    rhythm mid;
     return mid;
 }
 
@@ -214,6 +234,7 @@ class resources
 private:
     std::map<std::string, scale> scales_;
     std::map<std::string, units::chord> chords_;
+    std::map<std::string, units::chord> progressions_;
 public:
 
     resources()
@@ -252,6 +273,8 @@ public:
         scales_["pentatonic blues minor"]= mode(scales_["pentatonic minor"], scale_offset{5});
 
         chords_["trichord"] = units::chord({scale_offset{0}, scale_offset{2}, scale_offset{4}});
+        
+        progressions_["punk"] = units::chord({scale_offset{0}, scale_offset{3}, scale_offset{4}, scale_offset{0}});
     }
 
     inline
@@ -261,6 +284,10 @@ public:
     inline
     decltype(chords_)&
     chords() { return chords_; }
+
+    inline
+    decltype(progressions_)&
+    progressions() { return progressions_; }
 
 };
 

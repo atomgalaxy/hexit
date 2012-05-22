@@ -264,6 +264,24 @@ operator+(units::tone tone, const intervals_type& ints)
     return ints + tone;
 }
 
+std::vector<tones_type>
+operator+(const std::vector<intervals_type> ints, units::tone tone)
+{
+    std::vector<tones_type> out;
+    out.reserve(ints.size());
+    for (auto i : ints) {
+        out.emplace_back(tone + i);
+    }
+    return out;
+}
+
+std::vector<tones_type>
+operator+(units::tone tone, const std::vector<intervals_type>& ints)
+{
+    return ints + tone;
+}
+
+
 intervals_type
 operator+(units::interval v, intervals_type ints)
 {
