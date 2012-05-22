@@ -123,8 +123,8 @@ int main( int /* argc */, char ** /* argv */ )
     toni.push_back(dominant);
     toni.push_back(basechord);
 
-    for (auto i = 0; i < number_of_bars/(bars_per_chord*toni.size()); ++i) {
-        for (auto j = 0; j < toni.size(); ++j) { // generate all chords
+    for (size_t i = 0; i < number_of_bars/(bars_per_chord*toni.size()); ++i) {
+        for (size_t j = 0; j < toni.size(); ++j) { // generate all chords
             auto phrase_length = units::beat{beats_per_bar * bars_per_chord};
             sgr::notation::song phrase;
             phrase << timing::constant::create(phrase_length, units::bps{2});

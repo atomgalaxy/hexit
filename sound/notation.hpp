@@ -38,6 +38,7 @@ struct hit {
     {}
 
 };
+typedef std::vector<sgr::notation::hit> rhythm;
 
 /** Holds a single played note. */
 struct note {

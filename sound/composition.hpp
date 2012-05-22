@@ -90,7 +90,8 @@ public:
 /**
  * Returns the nth mode of the scale sc.
  */
-scale mode(const scale& sc, const units::scale_offset& n)
+scale
+mode(const scale& sc, const units::scale_offset& n)
 {
     using namespace units;
 
@@ -105,9 +106,8 @@ scale mode(const scale& sc, const units::scale_offset& n)
     return scale{std::move(newscale)};
 }
 
-typedef std::vector<sgr::notation::hit> rhythm;
 
-rhythm
+notation::rhythm
 waltzbeat_bass(units::beat biti)
 {
     using namespace sgr::notation;
@@ -140,26 +140,26 @@ waltzbeat_bass(units::beat biti)
 }
 
 /// TODO write the damn thing
-rhythm
+notation::rhythm
 waltzbeat_mid(units::beat biti)
 {
     using namespace sgr::notation;
 
-    std::vector<sgr::notation::hit> mid;
+    rhythm mid;
     return mid;
 }
 
 /// TODO write the damn thing
-rhythm
+notation::rhythm
 waltzbeat_high(units::beat biti)
 {
     using namespace sgr::notation;
 
-    std::vector<sgr::notation::hit> high;
+    rhythm high;
     return high;
 }
 
-std::vector<rhythm>
+std::vector<notation::rhythm>
 waltzbeat(units::beat beati)
 {
     using namespace sgr::notation;
@@ -180,8 +180,8 @@ waltzbeat(units::beat beati)
  */
 std::vector<sgr::notation::note>
 make_melody(
-        const std::vector<sgr::notation::hit>& hits,
-        const std::vector<units::tone>& tones
+        const notation::rhythm& hits,
+        const units::tones_type& tones
         )
 {
     using namespace notation;
@@ -199,30 +199,6 @@ make_melody(
     }
     return notes;
 }
-
-//namespace rhythm {
-////**
-// * Holds a passage of hits.
-// */
-//struct bar {
-//    bar() : hits_(), length_(0) {}
-//    bar& operator<<(const hit& h)
-//    {
-//        if (h.start + h.duration > length_) {
-//            length_ = h.start + h.duration;
-//        }
-//        hits_.push_back(h);
-//        return *this;
-//    }
-
-//    double length() const { return length_; }
-//    const std::vector<hit>& hits() const { return hits_; }
-//private:
-//    std::vector<hit> hits_;
-//    double length_;
-//};
-
-//} /* end namespace rhythm */
 
 std::vector<units::interval>
 to_intervals(const std::initializer_list<double>& offs) {
