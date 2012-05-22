@@ -137,7 +137,7 @@ waltzbeat_bass(units::beat biti)
 }
 
 /// TODO write the damn thing
-rhythm
+notation::rhythm
 waltzbeat_mid(units::beat biti)
 {
     using namespace sgr::notation;
@@ -267,14 +267,37 @@ public:
         scales_["hungarian gypsy"] = mode(scales_["double harmonic"], scale_offset{4});
 
         scales_["pentatonic minor"] = scale(to_intervals({0.,3.,5.,7.,10.}));
-        scales_["pentatonic major"] = mode(scales_["pentatonic minor"], scale_offset{2});
-        scales_["pentatonic egyptian"] = mode(scales_["pentatonic minor"], scale_offset{3});
-        scales_["pentatonic blues major"]= mode(scales_["pentatonic minor"], scale_offset{4});
-        scales_["pentatonic blues minor"]= mode(scales_["pentatonic minor"], scale_offset{5});
+        scales_["pentatonic major"] =
+            mode(scales_["pentatonic minor"], scale_offset{2});
+        scales_["pentatonic egyptian"] =
+            mode(scales_["pentatonic minor"], scale_offset{3});
+        scales_["pentatonic blues major"] =
+            mode(scales_["pentatonic minor"], scale_offset{4});
+        scales_["pentatonic blues minor"] =
+            mode(scales_["pentatonic minor"], scale_offset{5});
 
-        chords_["trichord"] = units::chord({scale_offset{0}, scale_offset{2}, scale_offset{4}});
-        
-        progressions_["punk"] = units::chord({scale_offset{0}, scale_offset{3}, scale_offset{4}, scale_offset{0}});
+        chords_["trichord"] = units::chord({
+                scale_offset{0}, scale_offset{2}, scale_offset{4}
+                });
+
+        progressions_["punk"] = units::chord({
+                scale_offset{0}, scale_offset{3},
+                scale_offset{4}, scale_offset{0}
+                });
+        progressions_["andalusian"] = units::chord({
+                scale_offset{0}, scale_offset{6},
+                scale_offset{5}, scale_offset{4}
+                });
+        progressions_["basic circle"] = units::chord({
+                scale_offset{5}, scale_offset{1},
+                scale_offset{4}, scale_offset{0}
+                });
+        progressions_["full circle"] = units::chord({
+                scale_offset{0}, scale_offset{3},
+                scale_offset{6}, scale_offset{2},
+                scale_offset{5}, scale_offset{1},
+                scale_offset{4}, scale_offset{0}
+                });
     }
 
     inline
